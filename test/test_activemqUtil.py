@@ -1,3 +1,4 @@
+import unittest
 from unittest import TestCase
 from message.activemqUtil import ActivemqUtil, ActivemqConfig
 import time
@@ -18,5 +19,5 @@ class Test(TestCase):
 
 
 if __name__ == '__main__':
-	test = Test()
-	test.test_activemq_util()
+	unittest.main()
+
