@@ -9,11 +9,12 @@ class Test(TestCase):
 	测试ActivemqUtil
 	"""
 	def test_activemq_util(self):
-		ActivemqUtil.send_to_queue(ActivemqConfig.access_queue_name, "test")
-		ActivemqUtil.receive_from_queue(ActivemqConfig.access_queue_name)
+		activemq_util = ActivemqUtil()
+		activemq_util.send_to_queue(ActivemqConfig.access_queue_name, "test")
+		activemq_util.receive_from_queue(ActivemqConfig.access_queue_name)
 
-		ActivemqUtil.receive_from_topic(ActivemqConfig.access_queue_name)
-		ActivemqUtil.send_to_topic(ActivemqConfig.access_queue_name, "test2")
+		activemq_util.receive_from_topic(ActivemqConfig.access_queue_name)
+		activemq_util.send_to_topic(ActivemqConfig.access_queue_name, "test2")
 
 		time.sleep(5)
 
