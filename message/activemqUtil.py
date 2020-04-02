@@ -3,7 +3,9 @@ from enum import Enum, unique
 
 import stomp
 
-from common.fileUtil import FileUtil
+from common import protoActiveMq_pb2
+from common.commonUtil import FileUtil
+from common.protoActiveMq_pb2 import MsgCmdType
 
 
 @unique
@@ -31,7 +33,7 @@ class ActivemqConfig(object):
 	access_queue_num = cp.getint("activemq", "access_queue_num")
 
 
-class MessageListener(stomp.ConnectionListener):
+class MessageListener(object):
 	"""
 	消息监听器
 	"""
@@ -44,6 +46,43 @@ class MessageListener(stomp.ConnectionListener):
 		"""
 		print('headers: %s' % headers)
 		print('message: %s' % message)
+		message_data = message
+		if type(message) is str:
+			message_data = bytes(message, encoding="utf-8")
+		head_length = 7
+		index = 0
+
+		while index < len(message_data):
+			audit = None
+			base_message = protoActiveMq_pb2.BaseMessage()
+			base_message.ParseFromString(message_data[index:head_length+index])
+			# print(base_message)
+
+			if base_message.cmdType == MsgCmdType.CAPAALogOn:
+				audit = protoActiveMq_pb2.CapaaLogOn()
+
+			if base_message.cmdType == MsgCmdType.CAPAALogOff:
+				audit = protoActiveMq_pb2.CapaaLogOff()
+
+			if base_message.cmdType == MsgCmdType.CAPAAAccess:
+				audit = protoActiveMq_pb2.CapaaAccess()
+
+			if base_message.cmdType == MsgCmdType.CAPAAAccessResult:
+				audit = protoActiveMq_pb2.CapaaAccessResult()
+
+			if base_message.cmdType == MsgCmdType.CAPAAFlowInfo:
+				audit = protoActiveMq_pb2.CapaaFlowInfo()
+
+			if base_message.cmdType == MsgCmdType.CAPAADBStat:
+				audit = protoActiveMq_pb2.DBStat()
+
+			if base_message.cmdType == MsgCmdType.CAPAADBResultset:
+				audit = protoActiveMq_pb2.DBResultset()
+
+			if audit is not None:
+				audit.ParseFromString(message_data[index:base_message.cmdLen+index])
+				index += base_message.cmdLen
+				# print("audit: %s" % audit)
 
 	def on_error(self, headers, message):
 		"""

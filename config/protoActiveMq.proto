@@ -1,0 +1,302 @@
+syntax = "proto3";  
+  
+package protoActiveMq;
+
+import public "google/protobuf/timestamp.proto";
+
+option java_package = "com.hzmc.common.protobuf";
+option java_outer_classname = "ProtoActiveMQ";
+
+enum MsgCmdType
+{
+	RESERVED = 0;
+	CAPAALogOn = 1;
+	CAPAALogOff = 2;
+	CAPAAAccess = 3;
+	CAPAAAccessResult = 4;
+	CAPAAKeepAlive = 5;
+	CAPAALinkInfo = 6;  	//连接信息
+	CAPAAFlowInfo = 7; 	//探针流量信息
+	CAPAADBStat = 8; 	//数据库统计信息
+    CAPAADBResultset = 9;   //数据库结果集信息
+}
+
+enum DataSrcType
+{
+	DATASRC_RESERVED = 0;
+	DATASRC_DBPROBE = 1;	     //探针
+	DATASRC_SWITCH_MIRROR = 2;   //网络镜像
+}
+
+enum SqlParserType
+{
+	SQL_RESERVED = 0;
+	SQL_PROTOCOL_PARSER = 1;
+	SQL_REGEX = 2;
+}
+
+message AlertBaseMessage{
+    fixed32 msgLen = 1;
+    fixed32 msgTypeValue = 2;
+}
+
+message BaseMessage
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+}
+
+//此包发送规则：
+//如果有登录包，在登录包发送之前，如果没有登录包，在第一个sql发送之前
+message CapaaLinkInfo
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	bytes sessionId = 3;
+	bytes srcIp = 4;
+	uint32 srcPort = 5;
+	bytes srcMac = 6;
+	bytes dstIp = 7;
+	uint32 dstPort = 8;
+	bytes dstMac = 9;
+	DataSrcType dataSrc = 10;//同CapaaAccess数据来源
+}
+
+message CapaaLogOn
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	bytes sessionId = 3;
+	bytes certSessionId = 4;
+	bytes ruleName = 5;
+	bytes eUserId = 6;
+	bytes eUser = 7;
+	bytes dbUser = 8;
+	bytes ipAddr = 9;	//客户端IP
+	bytes endHost = 10;
+	bytes endMac = 11;
+	bytes endIP = 12;
+	bytes osUser =13;
+	bytes appName =14;
+	bytes endApp =15;
+	uint64 logonTime =16;
+	uint64 logoffTime = 17;
+	bytes strCmdType = 18;
+	bytes what = 19;
+	bytes serverHost = 20;
+	bytes capaaDisplayName = 21;
+	bytes instanceName = 22;
+	uint32 actionLevel = 23;
+	uint32 auditLevel = 24;
+	bytes sid = 25;
+	bytes serial = 26;
+	bytes audSid = 27;
+	bytes hostMac = 28;
+	bytes svrIp = 29;
+	uint32 svrPort = 30;
+	bytes charset = 31;
+	uint32 cliPort = 32; //客户端端口(2019-01-07)
+}
+
+message CapaaLogOff
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	bytes sessionId = 3;
+	bytes strCmdType = 4;
+	uint64 logOffTime = 5;
+}
+
+message BindValue
+{
+    repeated bytes value = 1;
+}
+
+message CapaaAccess
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	bytes accessID = 3;
+	bytes sessionID = 4;	//数据库登录的sessionID
+	bytes appUser = 5;		//应用用户
+	bytes eUserID = 6;
+	bytes eUser = 7;
+	bytes sessionInfo = 8;
+	bytes endIP = 9;		//终端IP
+	bytes ruleName = 10;
+	uint64 opTime = 11;
+	bytes strCmdType = 12;
+	bytes objectOwner = 13;
+	bytes objectName = 14;
+	bytes objectType = 15;
+	uint32 actionLevel = 16;
+	uint32 auditLevel = 17;
+	bytes txID = 18;
+	bytes scn = 19;
+	bytes cscn = 20;
+	repeated BindValue bindValue = 21;
+	bytes srcMac = 22;
+	bytes sqlText = 23;
+	DataSrcType dataSrc = 24; 	//2017.10.31新增,数据来源
+	bytes cliIp = 25;			//2017.12.5新增,源端与目标端ip及端口号
+	uint32 cliPort = 26;
+	bytes svrIp = 27;
+	uint32 svrPort = 28;
+	SqlParserType sqlParserType = 29;
+	bytes originalSqlText = 30;
+	bytes dbUser = 31; 		// 数据库用户
+    	bytes endHost = 32; 		// 客户端主机名
+    	bytes appName = 33; 		// 客户端应用名称
+    	bytes appSessionID = 34;	//应用sessionID
+    	bytes endAppName = 35;		//终端应用名
+    	bytes capaaDisplayName = 36;   //保护对象名
+}
+
+message CapaaAccessResult
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	bytes accessId = 3;
+	bytes strCmdType = 4;
+	sint32 errCode = 5;
+	uint32 rowCount = 6;
+	uint64 runTime = 7; //2017.10.31修改,由原来的毫秒值精确到微秒值,由原来的32位改为64位
+}
+
+//从子节点接收到的告警对象配置
+message ProtobufAlertAudit{
+    fixed32 msgLen = 1;
+    fixed32 msgTypeValue = 2;
+    string id = 3;
+    string datasource = 4;
+    string sessid = 5;
+    string combinedLevel = 6;
+    string ruleName = 7;
+    string sqlcmdType = 8;
+    string objectOwner = 9;
+    string objectName = 10;
+    string sqltext = 11;
+    string sqlid = 12;
+    string review = 13;
+    google.protobuf.Timestamp optime = 14;
+    string scn = 15;
+    string cscn = 16;
+    string terminalInfo = 17;
+    google.protobuf.Timestamp lastModified = 18;
+    string hashid = 19;
+
+    string week = 20;
+    string weekday = 21;
+    string ym = 22;
+    string day = 23;
+    string hour = 24;
+    string ymdh = 25;
+
+    string combined_info = 26;
+    string certSessionId = 27;
+    string EuserId = 28;
+    string euser = 29;
+    string dbuser = 30;
+    string appuser = 31;
+    string ipAddress = 32;
+    string macAddress = 33;
+    string host = 34;
+    string endId = 35;
+    string osUser = 36;
+    string appName = 37;
+    string endApp = 38;
+    google.protobuf.Timestamp logonTime = 39;
+    google.protobuf.Timestamp logOffTime = 40;
+    string what = 41;
+    string serverHost = 42;
+    string dbName = 43;
+    string instanceName = 44;
+    string actionLevel = 45;
+    string actionLevelCn = 46;
+    string auditLevel = 47;
+    string sid = 48;
+    string serial = 49;
+    string audsid = 50;
+    string groupName = 51;
+    string areaName = 52;
+    string ipSegment = 53;
+    string switchInterface = 54;
+
+    int32 errorCode = 55;
+    string dbType = 56;
+    int32 rowCount = 57;
+    string svrIp = 58;
+    string cliIp = 59;
+
+    string reviewId = 60;
+    google.protobuf.Timestamp reviewTime = 61;
+
+    int64 anchorPoint = 62;
+    int32 cliPort = 63;
+    int32 svrPort = 64;
+
+    string alertRule = 65;
+    int32 alertRuleLevel = 66;
+}
+
+message SingleFlowInfo
+{
+	bytes uuid = 1;
+	uint64 flowSize = 2;
+	repeated bytes dbName = 3;
+}
+
+message CapaaFlowInfo
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	repeated SingleFlowInfo singleFlowInfo = 3;
+}
+
+
+message DBStat
+{
+	string db_name = 1;		//Database name (capaa display name)
+	uint64 c2s_size = 2;		//Request (client to server)
+	uint64 s2c_size = 3;		//Response (server to client)
+}
+
+message DBStats
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	uint64 tm_stamp = 3;		//Time stamp
+	repeated DBStat db_stats = 4;	//list of database stat
+}
+
+
+message CapaaKeepAlive
+{
+	fixed32 cmdLen = 1;
+	MsgCmdType cmdType = 2;
+	bytes sessionId = 3;
+	bytes strCmdType = 4;
+}
+
+
+message RowData
+{
+    repeated bytes data = 1;
+}
+
+message DBResultset
+{
+    fixed32 cmdLen = 1;
+    MsgCmdType cmdType = 2;
+    bytes accessId = 3;
+    repeated bytes fields = 4;
+    repeated RowData rs = 5;
+}
+
+
+//序列化前可调用ByteSizeLong()获取序列化后长度
+//调用memcpy获取头8个字节获取头是错误的
+
+//解析成功标志：
+//ParseFromString()返回值为true,接收数据不完整时会返回false
+//ByteSizeLong()返回值与cmdLen值一致
