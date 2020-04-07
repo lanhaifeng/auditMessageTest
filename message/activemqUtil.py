@@ -5,6 +5,7 @@ import stomp
 from common import protoActiveMq_pb2
 from common.commonUtil import MessageConfig
 from common.protoActiveMq_pb2 import MsgCmdType
+from stomp.utils import encode
 
 
 @unique
@@ -31,7 +32,7 @@ class MessageListener(object):
 		print('message: %s' % message)
 		message_data = message
 		if type(message) is str:
-			message_data = bytes(message, encoding="utf-8")
+			message_data = encode(message, encoding="utf-8")
 		head_length = 7
 		index = 0
 
@@ -86,7 +87,7 @@ class ActivemqUtil(object):
 		"""
 		初始化属性
 		"""
-		self.conn = stomp.Connection10([(MessageConfig.host, MessageConfig.port)])
+		self.conn = stomp.Connection10([(MessageConfig.host, MessageConfig.port)], auto_decode=False)
 		if MessageConfig.logon_validate:
 			assert MessageConfig.user is not None, "activemq 'user' is required"
 			assert MessageConfig.password is not None, "activemq 'password' is required"

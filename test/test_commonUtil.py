@@ -1,6 +1,9 @@
 import unittest
 from unittest import TestCase
 
+import xlrd
+from xlutils.copy import copy
+
 from common import protoActiveMq_pb2
 from common.commonUtil import FileUtil, StringUtil
 from common.protoActiveMq_pb2 import MsgCmdType
@@ -45,7 +48,7 @@ class TestStringUtil(TestCase):
 		self.assertEqual(b'\r\xe1\x00\x00\x00\x10\x03', StringUtil.int_to_bin_16_binary_bytes(python_byte_array))
 
 
-class ProtoActiveMq(TestCase):
+class TestProtoActiveMq(TestCase):
 	"""
 	测试protoActiveMq_pb2.py
 	"""
@@ -66,6 +69,48 @@ class ProtoActiveMq(TestCase):
 
 		self.assertEqual(cmd_len, base_message.cmdLen)
 		self.assertEqual(cmd_type, base_message.cmdType)
+
+
+class TestExcel(TestCase):
+	"""
+	测试excel工具类
+	"""
+	def test_read_write_excel(self):
+		"""
+		测试读写excel
+		:return:
+		"""
+		excel_path = FileUtil.get_project_path() + 'config\\LogonAudit_1586092319878.xls'
+		book = xlrd.open_workbook(excel_path, 'w+b')
+		sheets = book.sheets()
+		sheet1 = sheets[0]
+		print('表格总页数', len(sheets))
+
+		nrows = sheet1.nrows
+
+		print('表格总行数', nrows)
+
+		ncols = sheet1.ncols
+
+		print('表格总列数', ncols)
+
+		row3_values = sheet1.row_values(2)
+
+		print('第3行值', row3_values)
+
+		col3_values = sheet1.col_values(2)
+
+		print('第3列值', col3_values)
+
+		cell_3_3 = sheet1.cell(2, 2).value
+
+		print('第3行第3列的单元格的值：', cell_3_3)
+
+		new_workbook = copy(book)
+		new_worksheet = new_workbook.get_sheet(0)
+		for i in range(0, 10):
+			new_worksheet.write(sheets[0].nrows, i, i)
+		new_workbook.save(excel_path)
 
 
 if __name__ == '__main__':
