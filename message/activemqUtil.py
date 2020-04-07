@@ -1,10 +1,9 @@
-import configparser
 from enum import Enum, unique
 
 import stomp
 
 from common import protoActiveMq_pb2
-from common.commonUtil import FileUtil
+from common.commonUtil import MessageConfig
 from common.protoActiveMq_pb2 import MsgCmdType
 
 
@@ -15,22 +14,6 @@ class MessageType(Enum):
 	"""
 	QUEUE = "queue"
 	TOPIC = "topic"
-
-
-class ActivemqConfig(object):
-	"""
-	activemq属性配置类
-	"""
-	cp = configparser.ConfigParser()
-	file = FileUtil.get_project_path() + "config/message.conf"
-	cp.read(file, encoding="utf-8")
-	host = cp.get("activemq", "ip")
-	port = cp.getint("activemq", "port")
-	user = cp.get("activemq", "user")
-	password = cp.get("activemq", "password")
-	logon_validate = cp.getboolean("activemq", "logon_validate")
-	access_queue_name = cp.get("activemq", "access_queue_name")
-	access_queue_num = cp.getint("activemq", "access_queue_num")
 
 
 class MessageListener(object):
@@ -103,11 +86,11 @@ class ActivemqUtil(object):
 		"""
 		初始化属性
 		"""
-		self.conn = stomp.Connection10([(ActivemqConfig.host, ActivemqConfig.port)])
-		if ActivemqConfig.logon_validate:
-			assert ActivemqConfig.user is not None, "activemq 'user' is required"
-			assert ActivemqConfig.password is not None, "activemq 'password' is required"
-			self.conn.connect(ActivemqConfig.user, ActivemqConfig.password)
+		self.conn = stomp.Connection10([(MessageConfig.host, MessageConfig.port)])
+		if MessageConfig.logon_validate:
+			assert MessageConfig.user is not None, "activemq 'user' is required"
+			assert MessageConfig.password is not None, "activemq 'password' is required"
+			self.conn.connect(MessageConfig.user, MessageConfig.password)
 		else:
 			self.conn.connect()
 

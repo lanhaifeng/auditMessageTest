@@ -1,3 +1,4 @@
+import configparser
 import os
 
 
@@ -13,6 +14,24 @@ class FileUtil(object):
 		"""
 		execute_path = os.getcwd()
 		return execute_path[:execute_path.find("auditMessageTest\\") + len("auditMessageTest\\")]
+
+
+class MessageConfig(object):
+	"""
+	activemq属性配置类
+	"""
+	cp = configparser.ConfigParser()
+	file = FileUtil.get_project_path() + "config/message.conf"
+	cp.read(file, encoding="utf-8")
+	host = cp.get("activemq", "ip")
+	port = cp.getint("activemq", "port")
+	user = cp.get("activemq", "user")
+	password = cp.get("activemq", "password")
+	logon_validate = cp.getboolean("activemq", "logon_validate")
+	access_queue_name = cp.get("activemq", "access_queue_name")
+	access_queue_num = cp.getint("activemq", "access_queue_num")
+
+	output_dir = cp.get("output_config", "output_dir")
 
 
 class StringUtil(object):

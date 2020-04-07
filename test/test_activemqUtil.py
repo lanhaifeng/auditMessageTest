@@ -3,8 +3,8 @@ import unittest
 from unittest import TestCase
 
 from common import protoActiveMq_pb2
-from common.commonUtil import StringUtil
-from message.activemqUtil import ActivemqUtil, ActivemqConfig, MessageListener
+from common.commonUtil import StringUtil, MessageConfig
+from message.activemqUtil import ActivemqUtil, MessageListener
 
 java_protobuf_byte_array = (13, -31, 0, 0, 0, 16, 3, 26, 38, 57, 48, 48, 51, 49, 52, 48, 54, 55, 53, 50, 48, 50, 53, 57, 52, 53,
 	54, 48, 95, 49, 53, 56, 53, 55, 50, 54, 53, 53, 57, 49, 48, 50, 52, 50, 49, 95, 54, 34, 36, 57, 48, 48, 51,
@@ -76,7 +76,7 @@ class TestActiveMqUtil(TestCase):
 	"""
 	测试ActivemqUtil中activemq queue发送接收信息
 	"""
-	@unittest.skipIf(1, "skip test_activemq_util_parse")
+	@unittest.skipIf(0, "skip test_activemq_util_parse")
 	def test_activemq_util_parse(self):
 		"""
 		测试protobuf字节码转对象
@@ -91,15 +91,15 @@ class TestActiveMqUtil(TestCase):
 		lisener = MessageListener()
 		lisener.on_message([], protobuf_16_binary_bytes)
 
-	@unittest.skipIf(0, "skip test_activemq_util_queue")
+	@unittest.skipIf(1, "skip test_activemq_util_queue")
 	def test_activemq_util_queue(self):
 		__java_protobuf_byte_array = (13, -31, 0, 0, 0, 16, 3)
 		python_protobuf_byte_array = StringUtil.java_byte_to_python_byte(__java_protobuf_byte_array)
 		protobuf_16_binary_bytes = StringUtil.int_to_bin_16_binary_bytes(python_protobuf_byte_array)
 
 		activemq_util = ActivemqUtil()
-		activemq_util.send_to_queue(ActivemqConfig.access_queue_name, protobuf_16_binary_bytes)
-		activemq_util.receive_from_queue(ActivemqConfig.access_queue_name)
+		activemq_util.send_to_queue(MessageConfig.access_queue_name, protobuf_16_binary_bytes)
+		activemq_util.receive_from_queue(MessageConfig.access_queue_name)
 
 		time.sleep(10)
 
@@ -113,8 +113,8 @@ class TestActiveMqUtil(TestCase):
 		python_protobuf_byte_array = StringUtil.java_byte_to_python_byte(__java_protobuf_byte_array)
 		protobuf_16_binary_bytes = StringUtil.int_to_bin_16_binary_bytes(python_protobuf_byte_array)
 		activemq_util = ActivemqUtil()
-		activemq_util.receive_from_topic(ActivemqConfig.access_queue_name)
-		activemq_util.send_to_topic(ActivemqConfig.access_queue_name, protobuf_16_binary_bytes)
+		activemq_util.receive_from_topic(MessageConfig.access_queue_name)
+		activemq_util.send_to_topic(MessageConfig.access_queue_name, protobuf_16_binary_bytes)
 		time.sleep(10)
 
 
