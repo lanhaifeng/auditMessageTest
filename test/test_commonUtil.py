@@ -80,7 +80,7 @@ class TestExcel(TestCase):
 		测试读写excel
 		:return:
 		"""
-		excel_path = FileUtil.get_project_path() + 'config\\LogonAudit_1586092319878.xls'
+		excel_path = FileUtil.get_project_path() + 'test\\LogonAudit_1586092319878.xls'
 		book = xlrd.open_workbook(excel_path, 'w+b')
 		sheets = book.sheets()
 		sheet1 = sheets[0]
