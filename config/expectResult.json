@@ -1,0 +1,467 @@
+{
+  "logonProperties": [
+    {
+      "propertyName": "登录时间",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "退出时间",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "规则名称",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "数据库用户",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "应用程序",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "客户端IP",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "客户端端口",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "服务端IP",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "服务端端口",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "保护对象名",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "数据库实例",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "数据库主机名",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "主机名",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "物理地址1",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "物理地址2",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "操作系统用户",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "执行结果",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "审计级别",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    }
+  ],
+  "accessProperties": [
+    {
+      "propertyName": "访问时间",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "操作类型",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "资产对象",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "资产名",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "资产类型",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "执行结果",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "审计级别",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "原始SQL",
+      "configType": "file",
+      "expectResult": {
+        "expectValueFiles": [
+          "classpath:/test/sql/test1.sql"
+        ],
+        "expectNumFiles": [
+          "classpath:/test/sql/test1.num"
+        ]
+      }
+    },
+    {
+      "propertyName": "标准化SQL",
+      "configType": "dir",
+      "expectResult": {
+        "dataDir": "classpath:/test/sql/",
+        "expectValueSuffix": ".sql",
+        "expectNumSuffix": ".num"
+      }
+    },
+    {
+      "propertyName": "绑定变量",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "sql语法分析器类型",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "数据来源",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "客户端IP",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "客户端端口",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "服务端IP",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "服务端端口",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "数据库用户",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "保护对象名",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "终端应用",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "终端IP",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "终端用户",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "错误码",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "返回行数",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    },
+    {
+      "propertyName": "执行时长",
+      "configType": "str",
+      "expectResult": {
+        "expectValues": [
+          "*"
+        ],
+        "expectNums": [
+        ]
+      }
+    }
+  ]
+}
