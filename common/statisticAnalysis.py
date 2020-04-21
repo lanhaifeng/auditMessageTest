@@ -34,11 +34,25 @@ class ExpectResult(object):
     期待结果实体类
     """
 
-    def __init__(self, config_type: str, property_name: str, expect_result: dict):
+    def __init__(self, config_type: str, property_name: str, expect_result: dict,
+                 strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
         assert config_type is not None, "'config_type' is required"
         assert property_name is not None, "'property_name' is required"
+        assert strategy_type is not None, "'strategy_type' is required"
         self.configType = config_type.lower()
         self.propertyName = property_name
+        self.strategyType = strategy_type
+
+        if strategy_type == StrategyType.SINGLE_FIELD_COUNT:
+            self.__single_field_count_init_(config_type, expect_result)
+        if strategy_type == StrategyType.MULTIPLE_FIELDS_MATCH:
+            self.__multiple_fields_match_init__(config_type, expect_result)
+
+    def __single_field_count_init_(self, config_type: str, expect_result: dict):
+        """
+        策略类型为StrategyType.SINGLE_FIELD_COUNT的构造处理
+        :return:
+        """
         self.actualNums = []
         self.notMatchValues = []
         self.notMatchDataKeys = []
@@ -46,10 +60,12 @@ class ExpectResult(object):
         if config_type.lower() == ConfigType.STR.value.lower():
             self.expectValues = expect_result['expectValues']
             self.expectNums = expect_result['expectNums']
+            if len(self.expectNums) == 0:
+                self.expectNums = [1] * len(self.expectValues)
 
             assert self.expectValues is not None, "'expectValues' is required"
             assert self.expectNums is not None, "'expectNums' is required"
-            assert len(self.expectNums) == 0 or len(self.expectValues) == len(
+            assert len(self.expectNums) != 0 and len(self.expectValues) == len(
                 self.expectNums), "'values' length need equal 'expectNums' length"
         if config_type.lower() == ConfigType.FILE.value.lower():
             self.expectValueFiles = expect_result['expectValueFiles']
@@ -57,7 +73,7 @@ class ExpectResult(object):
 
             assert self.expectValueFiles is not None, "'expectValueFiles' is required"
             assert self.expectNumFiles is not None, "'expectNumFiles' is required"
-            assert len(self.expectNumFiles) == 0 or len(self.expectValueFiles) == len(
+            assert len(self.expectNumFiles) != 0 and len(self.expectValueFiles) == len(
                 self.expectNumFiles), "'valueFiles' length need equal 'expectNumFiles' length"
         if config_type.lower() == ConfigType.DIR.value.lower():
             self.dataDir = expect_result['dataDir']
@@ -70,31 +86,84 @@ class ExpectResult(object):
             assert self.expectNumSuffix is not None and self.expectNumSuffix.strip() != '', \
                 "'expectNumSuffix' is required"
 
+    def __multiple_fields_match_init__(self, config_type: str, expect_result: dict):
+        """
+        策略类型为StrategyType.MULTIPLE_FIELDS_MATCH的构造处理
+        :return:
+        """
+        self.groupExpectValues = []
+        self.notMatchGroupValues = []
+        self.notMatchGroupIds = []
+        self.groupColumns = expect_result['groupColumns']
+        self.mainPropertyIndex = expect_result['groupColumns'].index(self.propertyName)
+        assert self.groupColumns is not None and len(self.groupColumns) != 0, "'groupColumns' is required"
+        assert self.mainPropertyIndex is not None and self.mainPropertyIndex >= 0, "'mainPropertyIndex' is required"
+
+        if config_type.lower() == ConfigType.STR.value.lower():
+            self.groupValues = expect_result['groupValues']
+
+            assert self.groupValues is not None, "'groupValues' is required"
+            for groupValue in self.groupValues:
+                assert len(self.groupColumns) == len(
+                    groupValue), "'groupColumns' length need equal 'groupValues' element length"
+
+        if config_type.lower() == ConfigType.FILE.value.lower():
+            self.groupFileValues = expect_result['groupFileValues']
+
+            assert self.groupFileValues is not None, "'groupFileValues' is required"
+            assert len(self.groupColumns) == len(
+                self.groupFileValues), "'groupColumns' length need equal 'groupFileValues' length"
+            pass
+
+        if config_type.lower() == ConfigType.DIR.value.lower():
+            self.groupDataDir = expect_result['groupDataDir']
+            self.groupSuffixValues = expect_result['groupSuffixValues']
+
+            assert self.groupDataDir is not None, "'groupDataDir' is required"
+            assert self.groupSuffixValues is not None, "'groupSuffixValues' is required"
+            assert len(self.groupColumns) == len(
+                self.groupSuffixValues), "'groupColumns' length need equal 'groupSuffixValues' length"
+            pass
+
     def __str__(self):
         """
         重写方法便于输出
         :return:
         """
-        result = {
-            "字段名": self.propertyName,
-            "期待值": self.expectValues,
-            "不匹配值": self.notMatchValues,
-            "不匹配数据id": self.notMatchDataKeys,
-            "期待数量": self.expectNums,
-            "实际数量": self.actualNums
-        }
+        result = {}
+        if self.strategyType == StrategyType.SINGLE_FIELD_COUNT:
+            result = {
+                "字段名": self.propertyName,
+                "期待值": self.expectValues,
+                "不匹配值": self.notMatchValues,
+                "不匹配数据id": self.notMatchDataKeys,
+                "期待数量": self.expectNums,
+                "实际数量": self.actualNums
+            }
+        if self.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+            result = {
+                "字段名": self.propertyName,
+                "分组字段": self.groupColumns,
+                "分组字段值列表": self.groupValues
+            }
+            pass
 
         return json.dumps(result, ensure_ascii=False)
 
-    def to_list_for_out(self, audit_type : AuditType):
+    def to_list_for_out(self, audit_type: AuditType):
         """
         转为输出列表
         ["审计类型", "字段名", "期待数量", "实际数量", "期待值列表", "不匹配值列表", "不匹配数据id"]
         :param audit_type: 审计类型
         :return:
         """
-        return [audit_type.desc, self.propertyName, self.expectNums, self.actualNums, self.expectValues,
-                self.notMatchValues, self.notMatchDataKeys]
+        if self.strategyType == StrategyType.SINGLE_FIELD_COUNT:
+            return [audit_type.desc, self.propertyName, self.expectNums, self.actualNums, self.expectValues,
+                    self.notMatchValues, self.notMatchDataKeys]
+        if self.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+            return [audit_type.desc, self.propertyName, self.groupColumns, self.groupExpectValues,
+                    self.notMatchGroupValues, self.notMatchGroupIds]
+            pass
 
 
 class ExpectResultReader(object):
@@ -102,7 +171,7 @@ class ExpectResultReader(object):
     期待结果读取
     """
 
-    def __init__(self, expect_result_file: str):
+    def __init__(self, expect_result_file: str, strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
         """
         初始化方法，读取json文件
         """
@@ -119,35 +188,34 @@ class ExpectResultReader(object):
         if 'logonProperties' in self.__file_json:
             for expect_result in self.__file_json['logonProperties']:
                 self.__logonProperties.append(ExpectResult(expect_result['configType'], expect_result['propertyName'],
-                                                           expect_result['expectResult']))
+                                                           expect_result['expectResult'], strategy_type))
 
         if 'accessProperties' in self.__file_json:
             for expect_result in self.__file_json['accessProperties']:
                 self.__accessProperties.append(ExpectResult(expect_result['configType'], expect_result['propertyName'],
-                                                            expect_result['expectResult']))
+                                                            expect_result['expectResult'], strategy_type))
 
         for expect_result in self.__logonProperties:
-            self.__parse_expect_result(expect_result)
+            self._parse_expect_result(expect_result)
 
         for expect_result in self.__accessProperties:
-            self.__parse_expect_result(expect_result)
+            self._parse_expect_result(expect_result)
 
-    def __parse_expect_result(self, expect_result: ExpectResult):
+    def _parse_expect_result(self, expect_result: ExpectResult):
         config_type = expect_result.configType
         if config_type.lower() == ConfigType.STR.value.lower():
-            self.__parse_str_expect_result(expect_result)
+            self._parse_str_expect_result(expect_result)
         if config_type.lower() == ConfigType.FILE.value.lower():
-            self.__parse_file_expect_result(expect_result)
+            self._parse_file_expect_result(expect_result)
         if config_type.lower() == ConfigType.DIR.value.lower():
-            self.__parse_dir_expect_result(expect_result)
+            self._parse_dir_expect_result(expect_result)
 
-        if len(expect_result.actualNums) == 0:
-            expect_result.actualNums = [0] * len(expect_result.expectValues)
-        if len(expect_result.expectNums) == 0:
-            expect_result.expectNums = [1] * len(expect_result.expectValues)
+        if expect_result.strategyType == StrategyType.SINGLE_FIELD_COUNT:
+            if len(expect_result.actualNums) == 0:
+                expect_result.actualNums = [0] * len(expect_result.expectValues)
 
     @staticmethod
-    def __parse_str_expect_result(expect_result: ExpectResult):
+    def _parse_str_expect_result(expect_result: ExpectResult):
         assert expect_result.expectValues is not None, "'expectValues' is required"
         assert expect_result.expectNums is not None, "'expectNums' is required"
         assert len(expect_result.expectNums) == 0 or len(expect_result.expectValues) == len(
@@ -155,14 +223,10 @@ class ExpectResultReader(object):
         pass
 
     @staticmethod
-    def __parse_file_expect_result(expect_result: ExpectResult):
+    def _parse_file_expect_result(expect_result: ExpectResult):
         expect_value_files = expect_result.expectValueFiles
         expect_num_files = expect_result.expectNumFiles
 
-        assert expect_value_files is not None, "'expectValueFiles' is required"
-        assert expect_num_files is not None, "'expectNumFiles' is required"
-        assert len(expect_num_files) == 0 or len(expect_value_files) == len(
-            expect_num_files), "'expectValueFiles' length need equal 'expectNumFiles' length"
         expect_values = []
         expect_nums = []
         for index in range(len(expect_value_files)):
@@ -188,11 +252,11 @@ class ExpectResultReader(object):
         expect_result.expectNums = expect_nums
         delattr(expect_result, "expectValueFiles")
         delattr(expect_result, "expectNumFiles")
-        ExpectResultReader.__parse_str_expect_result(expect_result)
+        ExpectResultReader._parse_str_expect_result(expect_result)
         pass
 
     @staticmethod
-    def __parse_dir_expect_result(expect_result: ExpectResult):
+    def _parse_dir_expect_result(expect_result: ExpectResult):
         data_dir = expect_result.dataDir
         value_suffix = expect_result.expectValueSuffix
         expect_num_suffix = expect_result.expectNumSuffix
@@ -213,7 +277,7 @@ class ExpectResultReader(object):
         delattr(expect_result, "expectValueSuffix")
         delattr(expect_result, "expectNumSuffix")
 
-        ExpectResultReader.__parse_file_expect_result(expect_result)
+        ExpectResultReader._parse_file_expect_result(expect_result)
         pass
 
     def expect_result_str(self):
@@ -243,6 +307,63 @@ class ExpectResultReader(object):
         :return:
         """
         return self.__accessProperties
+
+
+class GroupExpectResultReader(ExpectResultReader):
+
+    def __init__(self, expect_result_file: str, strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
+        super().__init__(expect_result_file, strategy_type)
+
+    @staticmethod
+    def _parse_str_expect_result(expect_result: ExpectResult):
+        assert expect_result.groupValues is not None, "'groupValues' is required"
+        for groupValue in expect_result.groupValues:
+            assert len(expect_result.groupColumns) == len(
+                groupValue), "'groupColumns' length need equal 'groupValues' element length"
+
+    @staticmethod
+    def _parse_file_expect_result(expect_result: ExpectResult):
+        group_file_values = expect_result.groupFileValues
+        main_property_index = expect_result.mainPropertyIndex
+
+        group_values = [[]] * len(expect_result.groupColumns)
+        for columnIndex in range(len(expect_result.groupColumns)):
+            for file_index in range(len(group_file_values[columnIndex])):
+                group_value_file = FileUtil.get_file_path(group_file_values[columnIndex][file_index])
+                assert os.path.exists(group_value_file), "'groupFileValue' is not exist, group_value_file:" + str(
+                    group_value_file)
+                if group_value_file.endswith(".sql"):
+                    __group_value = FileUtil.get_sql_file(group_value_file)
+                    if __group_value is not None and len(__group_value) != 0:
+                        group_values[columnIndex] = group_values[columnIndex] + __group_value
+                else:
+                    __group_value = FileUtil.get_file_lines(group_value_file)
+                    if __group_value is not None and len(__group_value) != 0:
+                        group_values[columnIndex] = group_values[columnIndex] + __group_value
+
+        expect_group_values = [[''] * len(expect_result.groupColumns)] * len(group_values[main_property_index])
+        for row_index in range(len(group_values[main_property_index])):
+            for cell_index in range(len(expect_result.groupColumns)):
+                expect_group_values[row_index][cell_index] = group_values[cell_index][row_index]
+        expect_result.groupValues = expect_group_values
+        delattr(expect_result, "groupFileValues")
+
+    @staticmethod
+    def _parse_dir_expect_result(expect_result: ExpectResult):
+        group_data_dir = expect_result.groupDataDir
+        group_suffix_values = expect_result.groupSuffixValues
+        assert group_data_dir is not None and group_data_dir.strip() != '', "'groupDataDir' is required"
+        assert group_suffix_values is not None and len(group_suffix_values) != 0, \
+            "'groupSuffixValues' is required"
+        _group_value_files = [[]] * len(expect_result.groupColumns)
+        for index in range(len(expect_result.groupColumns)):
+            _group_value_files[index] = FileUtil.get_files(group_data_dir, group_suffix_values[index])
+
+        expect_result.groupFileValues = _group_value_files
+        delattr(expect_result, "groupDataDir")
+        delattr(expect_result, "groupSuffixValues")
+
+        GroupExpectResultReader._parse_file_expect_result(expect_result)
 
 
 class Strategy(object):
@@ -309,9 +430,10 @@ class SingleFieldCountStrategy(Strategy):
             work_sheet.write(nrows, index, header)
 
         for row_index in range(len(expect_results)):
-            row = expect_results[row_index].to_list_for_out(audit_type)
-            for cell_index in range(len(row)):
-                work_sheet.write(row_index + 1, cell_index, str(row[cell_index]))
+            if expect_results[row_index].strategyType == StrategyType.SINGLE_FIELD_COUNT:
+                row = expect_results[row_index].to_list_for_out(audit_type)
+                for cell_index in range(len(row)):
+                    work_sheet.write(row_index + 1, cell_index, str(row[cell_index]))
 
 
 class TotalCountStrategy(object):
@@ -363,14 +485,54 @@ class TotalCountStrategy(object):
 
 
 class MultipleFieldsMatchStrategy(Strategy):
+
     """
     多字段匹配策略
     """
+
+    def __init__(self) -> None:
+        self.__headers = ["审计类型", "主字段名", "分组字段", "分组期待值列表", "不匹配实际值列表", "不匹配数据id"]
+
     def statistic_data(self, data: dict, expect_result: ExpectResult):
         super().statistic_data(data, expect_result)
+        main_property_name = expect_result.propertyName
+        main_property_index = expect_result.mainPropertyIndex
+        group_columns = expect_result.groupColumns
+        group_values = expect_result.groupValues
+
+        for row_index, row in enumerate(group_values):
+            if row[main_property_index] == data[main_property_name]:
+                match = True
+                not_match_value = []
+                for index, column in enumerate(group_columns):
+                    not_match_value.append(data[column])
+                    if data[column] != row[index]:
+                        match = False
+                if not match:
+                    expect_result.groupExpectValues.append(row)
+                    expect_result.notMatchGroupValues.append(not_match_value)
+                    expect_result.notMatchGroupIds.append(data[self.PRIMARY_KEY])
+        pass
 
     def analysis_data(self, work_sheet: sheet, *args):
-        super().analysis_data(work_sheet)
+        expect_results = None
+        audit_type = None
+        for param in args:
+            if isinstance(param, AuditType):
+                audit_type = param
+
+            if isinstance(param, list) and len(param) > 0 and isinstance(param[0], ExpectResult):
+                expect_results = param
+
+        nrows = len(work_sheet.rows)
+        for index, header in enumerate(self.__headers):
+            work_sheet.write(nrows, index, header)
+
+        for row_index in range(len(expect_results)):
+            if expect_results[row_index].strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+                row = expect_results[row_index].to_list_for_out(audit_type)
+                for cell_index in range(len(row)):
+                    work_sheet.write(row_index + 1, cell_index, str(row[cell_index]))
 
 
 class SingleFieldStrategyDelegate(object):
@@ -427,7 +589,10 @@ class SingleFieldStrategyDelegate(object):
         """
         for expectResult in self.__expectResults:
             if expectResult.propertyName in self.__get_headers(data):
-                self.__singleFieldCountStrategy.statistic_data(data, expectResult)
+                if expectResult.strategyType == StrategyType.SINGLE_FIELD_COUNT:
+                    self.__singleFieldCountStrategy.statistic_data(data, expectResult)
+                if expectResult.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+                    self.__multipleFieldsMatchStrategy.statistic_data(data, expectResult)
         self.__totalCountStrategy.statistic_data(self.__audit_type, data)
 
     def analysis_data(self):
@@ -436,11 +601,15 @@ class SingleFieldStrategyDelegate(object):
         :return:
         """
         single_field_count_sheet = self.__workbook.add_sheet("singleFieldCount")
+        multiple_field_match_sheet = self.__workbook.add_sheet("multipleFieldMatch")
         total_count_sheet = self.__workbook.add_sheet("totalCount")
         self.__singleFieldCountStrategy.analysis_data(single_field_count_sheet, self.__expectResults, self.__audit_type)
+        self.__multipleFieldsMatchStrategy.analysis_data(multiple_field_match_sheet, self.__expectResults,
+                                                         self.__audit_type)
         self.__totalCountStrategy.analysis_data(total_count_sheet)
 
         if not os.path.exists(MessageConfig.output_dir):
             os.mkdir(MessageConfig.output_dir)
         self.__workbook.save(
-            MessageConfig.output_dir + "/analysisResult_" + self.__audit_type.value + str(time.time()) + ".xls")
+            MessageConfig.output_dir + "/analysisResult_" + self.__audit_type.value + str(
+                round(time.time() * 1000)) + ".xls")

@@ -1,0 +1,52 @@
+{
+  "logonProperties": [
+  ],
+  "accessProperties": [
+    {
+      "propertyName": "标准化SQL",
+      "configType": "str",
+      "expectResult": {
+        "groupColumns": [
+          "标准化SQL", "绑定变量", "执行结果"
+        ],
+        "groupValues": [
+          ["select * from test1", "[]", "0"],
+          ["select * from test2", "[]", "1"]
+        ]
+      }
+    },
+    {
+      "propertyName": "标准化SQL",
+      "configType": "file",
+      "expectResult": {
+        "groupColumns": [
+          "标准化SQL", "绑定变量", "执行结果"
+        ],
+        "groupFileValues": [
+          [
+            "classpath:/test/sql/sql/test2.sql"
+          ],
+          [
+            "classpath:/test/sql/sql/bindValue.txt1"
+          ],
+          [
+            "classpath:/test/sql/sql/result.txt2"
+          ]
+        ]
+      }
+    },
+    {
+      "propertyName": "标准化SQL",
+      "configType": "dir",
+      "expectResult": {
+        "groupColumns": [
+          "标准化SQL", "绑定变量", "执行结果"
+        ],
+        "groupDataDir": "classpath:/test/sql/sql/",
+        "groupSuffixValues": [
+          ".sql", ".txt1", ".txt2"
+        ]
+      }
+    }
+  ]
+}

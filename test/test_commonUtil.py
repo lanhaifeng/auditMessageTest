@@ -9,7 +9,8 @@ from xlutils.copy import copy
 from common import protoActiveMq_pb2
 from common.commonUtil import FileUtil, StringUtil, MessageConfig, AuditType, HeadersConfig
 from common.protoActiveMq_pb2 import MsgCmdType
-from common.statisticAnalysis import SingleFieldStrategyDelegate, ExpectResultReader
+from common.statisticAnalysis import SingleFieldStrategyDelegate, ExpectResultReader, GroupExpectResultReader, \
+	StrategyType
 
 
 class TestFileUtil(TestCase):
@@ -21,7 +22,7 @@ class TestFileUtil(TestCase):
 		测试获取项目根目录方法
 		:return:
 		"""
-		self.assertTrue(FileUtil.get_project_path().endswith("auditMessageTest\\"))
+		self.assertTrue(FileUtil.get_project_path().endswith("auditMessageTest"))
 
 	def test_get_files(self):
 		"""
@@ -88,7 +89,7 @@ class TestExcel(TestCase):
 	"""
 	测试excel工具类
 	"""
-	excel_url = 'test\\LogonAudit_1586413078263.xls'
+	excel_url = '\\test\\LogonAudit_1586413078263.xls'
 	def test_read_excel(self):
 		"""
 		测试读写excel
@@ -137,7 +138,7 @@ class TestExcel(TestCase):
 		测试excel追加写
 		:return:
 		"""
-		excel_url = 'test\\LogonAudit_1586092319878.xls'
+		excel_url = '\\test\\LogonAudit_1586092319878.xls'
 		excel_path = FileUtil.get_project_path() + self.excel_url
 		book = xlrd.open_workbook(excel_path, 'w+b')
 		# sheets = book.sheet_names()
@@ -162,7 +163,7 @@ class TestExpectResult(TestCase):
 		logon_strategy = SingleFieldStrategyDelegate(reader.logon_properties(), AuditType.LOGON)
 		access_strategy = SingleFieldStrategyDelegate(reader.access_properties(), AuditType.ACCESS)
 
-		logon_excel_path = FileUtil.get_project_path() + 'test\\LogonAudit_1586413078263.xls'
+		logon_excel_path = FileUtil.get_project_path() + '\\test\\LogonAudit_1586413078263.xls'
 		book = xlrd.open_workbook(logon_excel_path, 'w+b')
 		sheets = book.sheets()
 		for sheet in sheets:
@@ -176,8 +177,8 @@ class TestExpectResult(TestCase):
 			# print(expectResult)
 			pass
 
-		logon_excel_path = FileUtil.get_project_path() + 'test\\AccessAudit_1586413078448.xls'
-		book = xlrd.open_workbook(logon_excel_path, 'w+b')
+		access_excel_path = FileUtil.get_project_path() + '\\test\\AccessAudit_1586413078448.xls'
+		book = xlrd.open_workbook(access_excel_path, 'w+b')
 		sheets = book.sheets()
 		for sheet in sheets:
 			header = sheet.row_values(0)
@@ -190,7 +191,7 @@ class TestExpectResult(TestCase):
 			# print(expectResult)
 			pass
 
-		file = FileUtil.get_project_path() + "config/columnDesc.conf"
+		file = FileUtil.get_project_path() + "/config/columnDesc.conf"
 
 		cp = configparser.ConfigParser()
 		cp.read(file, encoding="utf-8")
@@ -201,8 +202,21 @@ class TestExpectResult(TestCase):
 
 		print(FileUtil.get_file_lines(file))
 
-		sql_file = FileUtil.get_project_path() + "test/sql/test1.sql"
+		sql_file = FileUtil.get_project_path() + "\\test\\sql\\sql\\test2.sql"
 		print(FileUtil.get_sql_file(sql_file))
+
+		reader = GroupExpectResultReader(MessageConfig.group_expect_result_file, StrategyType.MULTIPLE_FIELDS_MATCH)
+		for expectResult in reader.access_properties():
+			print(expectResult)
+			pass
+		access_strategy = SingleFieldStrategyDelegate(reader.access_properties(), AuditType.ACCESS)
+		for sheet in sheets:
+			header = sheet.row_values(0)
+			for index in range(1, sheet.nrows):
+				data = dict(zip(header, sheet.row_values(index)))
+				access_strategy.statistic_data(data)
+
+		access_strategy.analysis_data()
 
 
 if __name__ == '__main__':

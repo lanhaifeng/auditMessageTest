@@ -75,7 +75,7 @@ class FileUtil(object):
 		"""
 		path = FileUtil.get_file_path(path)
 		file = open(path, 'r', encoding=encoding)
-		lines = [line.strip(split_char) for line in file.readlines()]
+		lines = [str(line).strip(split_char) for line in file.readlines()]
 		file.close()
 
 		return lines
@@ -98,15 +98,19 @@ class FileUtil(object):
 				# 替换空行为1个空格
 				x = x.replace('\n', ' ')
 
-			# 判断多个空格时
-			if '    ' in x:
-				# 替换为空
-				x = x.replace('    ', '')
-
 			sql_item = sql_item + x
 
 		file.close()
-		return [] if sql_item == '' else [sql.strip() for sql in sql_item[:len(sql_item) - 1].split(";")]
+		sql_list = [] if sql_item == '' else [sql.strip() for sql in sql_item[:len(sql_item) - 1].split(";")]
+		for index, sql in enumerate(sql_list):
+			sql_value = ''
+			for word in sql.split(" "):
+				if word != '':
+					sql_value += word + " "
+			if len(sql_value) > 1:
+				sql_value = sql_value[:len(sql_value) - 1]
+			sql_list[index] = sql_value
+		return sql_list
 
 	@staticmethod
 	def get_file_spilt_char(file_name: str) -> str:
@@ -155,6 +159,11 @@ class MessageConfig(object):
 	if expect_result_file.startswith("classpath:"):
 		expect_result_file = expect_result_file[expect_result_file.index("classpath:") + 10:]
 		expect_result_file = FileUtil.get_project_path() + expect_result_file
+
+	group_expect_result_file = cp.get("output_config", "group_expect_result_file")
+	if group_expect_result_file.startswith("classpath:"):
+		group_expect_result_file = group_expect_result_file[group_expect_result_file.index("classpath:") + 10:]
+		group_expect_result_file = FileUtil.get_project_path() + group_expect_result_file
 
 	log_dir = cp.get("log_config", "log_dir")
 	if not os.path.exists(log_dir):
