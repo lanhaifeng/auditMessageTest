@@ -1,3 +1,5 @@
+import sys
+
 import main
 
-main.main()
+main.main(sys.argv[1:])

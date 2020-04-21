@@ -9,7 +9,7 @@ from xlutils.copy import copy
 from common import protoActiveMq_pb2
 from common.commonUtil import FileUtil, StringUtil, MessageConfig, AuditType, HeadersConfig
 from common.protoActiveMq_pb2 import MsgCmdType
-from common.statisticAnalysis import SingleFieldStrategyDelegate, ExpectResultReader, GroupExpectResultReader, \
+from common.statisticAnalysis import SingleFieldStrategyDelegate, SingleExpectResultReader, GroupExpectResultReader, \
 	StrategyType
 
 
@@ -159,7 +159,7 @@ class TestExpectResult(TestCase):
 	测试ExpectResult
 	"""
 	def test_read_json(self):
-		reader = ExpectResultReader(MessageConfig.expect_result_file)
+		reader = SingleExpectResultReader(MessageConfig.single_expect_result_file)
 		logon_strategy = SingleFieldStrategyDelegate(reader.logon_properties(), AuditType.LOGON)
 		access_strategy = SingleFieldStrategyDelegate(reader.access_properties(), AuditType.ACCESS)
 

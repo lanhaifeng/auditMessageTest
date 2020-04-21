@@ -3,9 +3,6 @@ import os
 import platform
 from enum import unique, Enum
 
-import xlrd
-import xlwt
-
 
 class FileUtil(object):
 	"""
@@ -155,10 +152,10 @@ class MessageConfig(object):
 	access_queue_num = cp.getint("activemq", "access_queue_num")
 
 	output_dir = cp.get("output_config", "output_dir")
-	expect_result_file = cp.get("output_config", "expect_result_file")
-	if expect_result_file.startswith("classpath:"):
-		expect_result_file = expect_result_file[expect_result_file.index("classpath:") + 10:]
-		expect_result_file = FileUtil.get_project_path() + expect_result_file
+	single_expect_result_file = cp.get("output_config", "single_expect_result_file")
+	if single_expect_result_file.startswith("classpath:"):
+		single_expect_result_file = single_expect_result_file[single_expect_result_file.index("classpath:") + 10:]
+		single_expect_result_file = FileUtil.get_project_path() + single_expect_result_file
 
 	group_expect_result_file = cp.get("output_config", "group_expect_result_file")
 	if group_expect_result_file.startswith("classpath:"):
@@ -265,18 +262,3 @@ class SystemUtil(object):
 		"""
 		return platform.system()
 
-
-class ExcelTemplate(object):
-	"""
-	excel模板类
-	"""
-	def __init__(self, excel_path: str):
-		assert excel_path is not None and excel_path.strip() != '', "'excel_path' is required"
-		path = FileUtil.get_file_path(excel_path)
-		if os.path.exists(path):
-			self.__workBook = xlrd.open_workbook(excel_path, 'w+b')
-		else:
-			self.__workBook = xlwt.Workbook()
-
-	def build_workBook(excel_path: str):
-		return xlwt.Workbook()

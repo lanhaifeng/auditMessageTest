@@ -166,18 +166,18 @@ class ExpectResult(object):
             pass
 
 
-class ExpectResultReader(object):
+class SingleExpectResultReader(object):
     """
     期待结果读取
     """
 
-    def __init__(self, expect_result_file: str, strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
+    def __init__(self, single_expect_result_file: str, strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
         """
         初始化方法，读取json文件
         """
-        assert expect_result_file is not None, "'expect_result_file' is required"
+        assert single_expect_result_file is not None, "'single_expect_result_file' is required"
         assert strategy_type is not None, "'strategy_type' is required"
-        __file = open(expect_result_file, "rb")
+        __file = open(single_expect_result_file, "rb")
         self.__file_json = json.load(__file)
         __file.close()
 
@@ -253,7 +253,7 @@ class ExpectResultReader(object):
         expect_result.expectNums = expect_nums
         delattr(expect_result, "expectValueFiles")
         delattr(expect_result, "expectNumFiles")
-        ExpectResultReader._parse_str_expect_result(expect_result)
+        SingleExpectResultReader._parse_str_expect_result(expect_result)
         pass
 
     @staticmethod
@@ -278,7 +278,7 @@ class ExpectResultReader(object):
         delattr(expect_result, "expectValueSuffix")
         delattr(expect_result, "expectNumSuffix")
 
-        ExpectResultReader._parse_file_expect_result(expect_result)
+        SingleExpectResultReader._parse_file_expect_result(expect_result)
         pass
 
     def expect_result_str(self):
@@ -310,10 +310,10 @@ class ExpectResultReader(object):
         return self.__accessProperties
 
 
-class GroupExpectResultReader(ExpectResultReader):
+class GroupExpectResultReader(SingleExpectResultReader):
 
-    def __init__(self, expect_result_file: str, strategy_type: StrategyType = StrategyType.MULTIPLE_FIELDS_MATCH):
-        super().__init__(expect_result_file, strategy_type)
+    def __init__(self, single_expect_result_file: str, strategy_type: StrategyType = StrategyType.MULTIPLE_FIELDS_MATCH):
+        super().__init__(single_expect_result_file, strategy_type)
 
     @staticmethod
     def _parse_str_expect_result(expect_result: ExpectResult):
