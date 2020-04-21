@@ -6,7 +6,7 @@ import time
 import xlrd
 
 from common.commonUtil import MessageConfig, FileUtil, AuditType, SystemUtil
-from common.statisticAnalysis import SingleFieldStrategyDelegate, ExpectResultReader
+from common.statisticAnalysis import SingleFieldStrategyDelegate, ExpectResultReader, GroupExpectResultReader
 
 
 def __start_receive():
@@ -55,9 +55,15 @@ def __statistic_analysis_data():
     __output_dir = MessageConfig.output_dir
     if os.path.exists(__output_dir):
         reader = ExpectResultReader(MessageConfig.expect_result_file)
+        access_properties = reader.access_properties()
+        logon_properties = reader.logon_properties()
+
+        reader = GroupExpectResultReader(MessageConfig.group_expect_result_file)
+        access_properties.extend(reader.access_properties())
+        logon_properties.extend(reader.logon_properties())
 
         __access_files = FileUtil.get_files_prefix(__output_dir, AuditType.ACCESS.value.upper())
-        access_strategy = SingleFieldStrategyDelegate(reader.access_properties(), AuditType.ACCESS)
+        access_strategy = SingleFieldStrategyDelegate(access_properties, AuditType.ACCESS)
         for access_file in __access_files:
             book = xlrd.open_workbook(access_file, 'w+b')
             sheets = book.sheets()
@@ -68,7 +74,7 @@ def __statistic_analysis_data():
                     access_strategy.statistic_data(data)
 
         __logon_files = FileUtil.get_files_prefix(__output_dir, AuditType.ACCESS.value.upper())
-        logon_strategy = SingleFieldStrategyDelegate(reader.logon_properties(), AuditType.LOGON)
+        logon_strategy = SingleFieldStrategyDelegate(logon_properties, AuditType.LOGON)
         for logon_file in __logon_files:
             book = xlrd.open_workbook(logon_file, 'w+b')
             sheets = book.sheets()

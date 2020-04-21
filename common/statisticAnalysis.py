@@ -176,6 +176,7 @@ class ExpectResultReader(object):
         初始化方法，读取json文件
         """
         assert expect_result_file is not None, "'expect_result_file' is required"
+        assert strategy_type is not None, "'strategy_type' is required"
         __file = open(expect_result_file, "rb")
         self.__file_json = json.load(__file)
         __file.close()
@@ -311,7 +312,7 @@ class ExpectResultReader(object):
 
 class GroupExpectResultReader(ExpectResultReader):
 
-    def __init__(self, expect_result_file: str, strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
+    def __init__(self, expect_result_file: str, strategy_type: StrategyType = StrategyType.MULTIPLE_FIELDS_MATCH):
         super().__init__(expect_result_file, strategy_type)
 
     @staticmethod
@@ -527,12 +528,12 @@ class MultipleFieldsMatchStrategy(Strategy):
         nrows = len(work_sheet.rows)
         for index, header in enumerate(self.__headers):
             work_sheet.write(nrows, index, header)
-
-        for row_index in range(len(expect_results)):
-            if expect_results[row_index].strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
-                row = expect_results[row_index].to_list_for_out(audit_type)
-                for cell_index in range(len(row)):
-                    work_sheet.write(row_index + 1, cell_index, str(row[cell_index]))
+        if expect_results is not None:
+            for row_index in range(len(expect_results)):
+                if expect_results[row_index].strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+                    row = expect_results[row_index].to_list_for_out(audit_type)
+                    for cell_index in range(len(row)):
+                        work_sheet.write(row_index + 1, cell_index, str(row[cell_index]))
 
 
 class SingleFieldStrategyDelegate(object):
@@ -603,8 +604,17 @@ class SingleFieldStrategyDelegate(object):
         single_field_count_sheet = self.__workbook.add_sheet("singleFieldCount")
         multiple_field_match_sheet = self.__workbook.add_sheet("multipleFieldMatch")
         total_count_sheet = self.__workbook.add_sheet("totalCount")
-        self.__singleFieldCountStrategy.analysis_data(single_field_count_sheet, self.__expectResults, self.__audit_type)
-        self.__multipleFieldsMatchStrategy.analysis_data(multiple_field_match_sheet, self.__expectResults,
+        __single_expectResults = []
+        __multiple_expectResults = []
+        for expectResult in self.__expectResults:
+            if expectResult.strategyType == StrategyType.SINGLE_FIELD_COUNT:
+                __single_expectResults.append(expectResult)
+            if expectResult.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+                __multiple_expectResults.append(expectResult)
+
+        self.__singleFieldCountStrategy.analysis_data(single_field_count_sheet, __single_expectResults,
+                                                      self.__audit_type)
+        self.__multipleFieldsMatchStrategy.analysis_data(multiple_field_match_sheet, __multiple_expectResults,
                                                          self.__audit_type)
         self.__totalCountStrategy.analysis_data(total_count_sheet)
 
