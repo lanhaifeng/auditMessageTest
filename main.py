@@ -166,7 +166,6 @@ def main(argv):
         __receive_thread = threading.Thread(target=__start_receive())
     if operation_mode == OperationMode.ANALYSIS.value:
         __analysis_thread = threading.Thread(target=__statistic_analysis_data())
-        __analysis_thread.start()
 
 
 if __name__ == '__main__':
