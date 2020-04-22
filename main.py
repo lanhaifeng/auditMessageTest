@@ -24,7 +24,7 @@ def __start_receive():
         command = "start javaw -jar " + file_path
     else:
         command = "nohup java -jar " + file_path
-    arg0 = "--spring.activemq.broker-url=tcp://" + MessageConfig.host + str(MessageConfig.port)
+    arg0 = "--spring.activemq.broker-url=tcp://" + MessageConfig.host + ":" + str(MessageConfig.port)
     arg1 = "--spring.activemq.user=" + MessageConfig.user
     arg2 = "--spring.activemq.password=" + MessageConfig.password
     arg3 = "--message.output.path=" + MessageConfig.output_dir
