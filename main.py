@@ -70,7 +70,7 @@ def __statistic_analysis_data():
         access_properties.extend(reader.access_properties())
         logon_properties.extend(reader.logon_properties())
 
-        __access_files = FileUtil.get_files_prefix(__output_dir, AuditType.ACCESS.value.upper())
+        __access_files = FileUtil.get_files_prefix(__output_dir, AuditType.ACCESS.analysis_pre_file_name)
         access_strategy = SingleFieldStrategyDelegate(access_properties, AuditType.ACCESS)
         for access_file in __access_files:
             book = xlrd.open_workbook(access_file, 'w+b')
@@ -81,7 +81,7 @@ def __statistic_analysis_data():
                     data = dict(zip(header, sheet.row_values(index)))
                     access_strategy.statistic_data(data)
 
-        __logon_files = FileUtil.get_files_prefix(__output_dir, AuditType.ACCESS.value.upper())
+        __logon_files = FileUtil.get_files_prefix(__output_dir, AuditType.LOGON.analysis_pre_file_name)
         logon_strategy = SingleFieldStrategyDelegate(logon_properties, AuditType.LOGON)
         for logon_file in __logon_files:
             book = xlrd.open_workbook(logon_file, 'w+b')
@@ -166,6 +166,7 @@ def main(argv):
         __receive_thread = threading.Thread(target=__start_receive())
     if operation_mode == OperationMode.ANALYSIS.value:
         __analysis_thread = threading.Thread(target=__statistic_analysis_data())
+        __analysis_thread.start()
 
 
 if __name__ == '__main__':

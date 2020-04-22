@@ -233,6 +233,13 @@ class AuditType(Enum):
 		if self == AuditType.LOGON:
 			return "登录"
 
+	@property
+	def analysis_pre_file_name(self):
+		if self == AuditType.ACCESS:
+			return "AccessAudit"
+		if self == AuditType.LOGON:
+			return "LogonAudit"
+
 
 class HeadersConfig(object):
 	"""
