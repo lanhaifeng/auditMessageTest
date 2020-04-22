@@ -1,3 +1,4 @@
+# -*- coding:UTF-8 -*-
 import time
 import unittest
 from unittest import TestCase

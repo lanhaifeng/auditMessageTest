@@ -1,3 +1,4 @@
+# -*- coding:UTF-8 -*-
 import configparser
 import unittest
 from unittest import TestCase
