@@ -293,8 +293,11 @@ class PostDataExcelReader(object):
     """
     excel后置数据读取器
     """
-    def __init__(self, file_pre: str):
+    def __init__(self, file_pre: str, merge_columns: list):
         assert file_pre and file_pre.strip(), "'file_pre' is required"
+        assert merge_columns and len(merge_columns), "'merge_columns' is required"
+
+        self.__merge_columns = merge_columns
         __files = FileUtil.get_files_prefix(MessageConfig.output_dir, file_pre)
         self.__datas = {}
         for __file in __files:
@@ -320,7 +323,12 @@ class PostDataExcelReader(object):
         :param primary_key_value: 关联主键
         :return:
         """
-        return self.__datas[primary_key_value] if primary_key_value in self.__datas.keys() else {}
+        __data = self.__datas[primary_key_value] if primary_key_value in self.__datas.keys() else {}
+        __merge_data = {}
+        if __data:
+            for key in self.__merge_columns:
+                __merge_data[key] = __data[key]
+        return __merge_data
 
 
 class AccessResultExcelReader(PostDataExcelReader):
@@ -329,7 +337,8 @@ class AccessResultExcelReader(PostDataExcelReader):
     """
 
     def __init__(self, file_pre: str):
-        super().__init__(file_pre)
+        __merge_columns = ["id", "返回行数", "错误码", "执行时长", "是否访问审计执行结果"]
+        super().__init__(file_pre, __merge_columns)
 
 
 class SqlResultExcelReader(PostDataExcelReader):
@@ -338,7 +347,8 @@ class SqlResultExcelReader(PostDataExcelReader):
     """
 
     def __init__(self, file_pre: str):
-        super().__init__(file_pre)
+        __merge_columns = ["访问id", "字段描述", "行数据"]
+        super().__init__(file_pre, __merge_columns)
 
     @property
     def primary_key_name(self) -> str:
@@ -351,7 +361,8 @@ class LogoffExcelReader(PostDataExcelReader):
     """
 
     def __init__(self, file_pre: str):
-        super().__init__(file_pre)
+        __merge_columns = ["id", "退出时间", "是否登出审计"]
+        super().__init__(file_pre, __merge_columns)
 
 
 class PostDataExcelReaderDelegate(object):
