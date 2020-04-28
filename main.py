@@ -10,14 +10,22 @@ from enum import Enum, unique
 import xlrd
 
 from common.commonUtil import MessageConfig, FileUtil, AuditType, SystemUtil
-from common.statisticAnalysis import SingleFieldStrategyDelegate, SingleExpectResultReader, GroupExpectResultReader
+from common.statisticAnalysis import StrategyDelegate, SingleExpectResultParse, GroupExpectResultParse
+from common.dataProcessor import PostDataExcelReaderDelegate
 
 
-def __start_receive():
+def __start_receive(need_clean: bool = False):
     """
     启动接收消息方法
     :return:
     """
+    __shutdown()
+    if need_clean:
+        __files = []
+        __files += FileUtil.get_files_prefix(MessageConfig.output_dir, AuditType.ACCESS.analysis_pre_file_name)
+        __files += FileUtil.get_files_prefix(MessageConfig.output_dir, AuditType.LOGON.analysis_pre_file_name)
+        for __file in __files:
+            os.remove(__file)
     file_path = FileUtil.get_project_path() + "\\config\\receive-0.0.1-SNAPSHOT.jar"
     operating_system = SystemUtil.get_operating_system()
     if operating_system == 'Windows':
@@ -55,53 +63,57 @@ def __shutdown():
     p.wait()
 
 
-def __statistic_analysis_data():
+def __statistic_analysis_data(filter_content: str):
     """
     统计分析数据
     :return:
     """
     __output_dir = MessageConfig.output_dir
     if os.path.exists(__output_dir):
-        reader = SingleExpectResultReader(MessageConfig.single_expect_result_file)
+        post_data_excel_reader_delegate = PostDataExcelReaderDelegate()
+        reader = SingleExpectResultParse()
         access_properties = reader.access_properties()
         logon_properties = reader.logon_properties()
 
-        reader = GroupExpectResultReader(MessageConfig.group_expect_result_file)
+        reader = GroupExpectResultParse()
         access_properties.extend(reader.access_properties())
         logon_properties.extend(reader.logon_properties())
 
         __access_files = FileUtil.get_files_prefix(__output_dir, AuditType.ACCESS.analysis_pre_file_name)
-        access_strategy = SingleFieldStrategyDelegate(access_properties, AuditType.ACCESS)
+        access_strategy = StrategyDelegate(access_properties, AuditType.ACCESS, filter_content)
         for access_file in __access_files:
-            book = xlrd.open_workbook(access_file, 'w+b')
+            book = xlrd.open_workbook(access_file, 'r+b')
             sheets = book.sheets()
             for sheet in sheets:
                 header = sheet.row_values(0)
                 for index in range(1, sheet.nrows):
                     data = dict(zip(header, sheet.row_values(index)))
+                    post_data_excel_reader_delegate.merge_data(data, AuditType.ACCESS)
                     access_strategy.statistic_data(data)
 
         __logon_files = FileUtil.get_files_prefix(__output_dir, AuditType.LOGON.analysis_pre_file_name)
-        logon_strategy = SingleFieldStrategyDelegate(logon_properties, AuditType.LOGON)
+        logon_strategy = StrategyDelegate(logon_properties, AuditType.LOGON, filter_content)
         for logon_file in __logon_files:
-            book = xlrd.open_workbook(logon_file, 'w+b')
+            book = xlrd.open_workbook(logon_file, 'r+b')
             sheets = book.sheets()
             for sheet in sheets:
                 header = sheet.row_values(0)
                 for index in range(1, sheet.nrows):
                     data = dict(zip(header, sheet.row_values(index)))
+                    post_data_excel_reader_delegate.merge_data(data, AuditType.LOGON)
                     logon_strategy.statistic_data(data)
 
         access_strategy.analysis_data()
         logon_strategy.analysis_data()
-    sys.exit()
     pass
 
 
 @unique
 class OperationMode(Enum):
     RECEIVE = "receive"
+    DRECEIVE = "dreceive"
     ANALYSIS = "analysis"
+    SANALYSIS = "sanalysis"
     ALL = "all"
 
 
@@ -111,13 +123,46 @@ def main(argv):
     :return:
     """
     operation_mode = None
-    help_desc = 'python auditMessageTest -m <mode:receive,analysis,all> -o <output_dir> -s <single_file> ' \
-                '-g <group_file> -l <log_dir> -t <time:receive and write data time> -i <ip:activemq ip>' \
-                ' -p <port:activemq port> -u <user:activemq user> -w <password:activemq passwod>'
+    filters = ""
+    help_desc = 'usage: auditMessageTest'
+    help_desc += '\n    -m,--mode <arg>             run mode'
+    help_desc += '\n    -o,--output_dir <arg>      output file dir'
+    help_desc += '\n    -s,--single_file <arg>     config file for single strategy analysis audit' \
+                 '\n                            ,default config/expectResultConfig.xls'
+    help_desc += '\n    -g,--group_file <arg>      config file for group strategy analysis audit' \
+                 '\n                            ,default config/expectResultConfig.xls'
+    help_desc += '\n    -l,--log_dir <arg>         log file dir'
+    help_desc += '\n    -t,--time <arg>            receive audit time,union seconds'
+    help_desc += '\n    -i,--ip <arg>              mq host'
+    help_desc += '\n    -p,--port <arg>            mq port'
+    help_desc += '\n    -u,--user <arg>            mq username'
+    help_desc += '\n    -P,--password <arg>        mq password'
+    help_desc += '\n    -f,--filter <arg>          data analysis filter'
+    help_desc += "\n    -------------------------------------------------------------------------"
+
+    mode_desc = '\n\n    mode：'
+    mode_desc += '\n    value        desc'
+    mode_desc += '\n    ------       -----------------------------'
+    mode_desc += '\n    receive      receive audit records'
+    mode_desc += '\n    dreceive     delete audit files and receive audit records'
+    mode_desc += '\n    analysis     analysis audit records and output result'
+    mode_desc += '\n    sanalysis    stop receive audit process, and analysis audit records,' \
+                 '\n                 and output result'
+    mode_desc += '\n    all          same effect of dreceive and analysis'
+    mode_desc += "\n    --------------------------------------------------------------------------"
+
+    filter_desc = "\n\n    filter："
+    filter_desc += "\n    eg：access 规则名称 eq NETWORK,logon 客户端ip ne 127.0.0.1"
+    filter_desc += "\n    access：访问记录过滤规则，logon访问记录过滤规则"
+    filter_desc += "\n    规则名称：过滤字段名"
+    filter_desc += "\n    eq：等于，ne：不等于"
+    filter_desc += "\n    NETWORK：期待过滤的值"
+
+    help_desc = help_desc + mode_desc + filter_desc
     try:
-        opts, args = getopt.getopt(argv, "hm:o:s:g:l:t:i:p:u:w",
+        opts, args = getopt.getopt(argv, "hm:o:s:g:l:t:i:p:u:P:f:",
                                    ["help", "mode=", "output_dir=", "single_file=", "group_file=", "log_dir=", "time=",
-                                    "ip=", "port=", "user=", "password="])
+                                    "ip=", "port=", "user=", "password=", "filter="])
     except getopt.GetoptError:
         print(help_desc)
         sys.exit(2)
@@ -132,40 +177,58 @@ def main(argv):
                 "'operation_mode' need in (all, receive, analysis)"
 
         elif opt in ("-o", "--output_dir"):
-            assert arg is not None and arg != '', "'output_dir' is illegal"
+            assert arg and arg.strip(), "'output_dir' is illegal"
             MessageConfig.output_dir = arg
         elif opt in ("-s", "--single_file"):
-            assert arg is not None and arg != '' and arg.endswith('.json'), "'single_expect_result_file' is illegal"
+            assert arg and arg.strip() and arg.endswith('.json'), "'single_expect_result_file' is illegal"
             MessageConfig.single_expect_result_file = arg
         elif opt in ("-g", "--group_file"):
-            assert arg is not None and arg != '' and arg.endswith('.json'), "'group_expect_result_file' is illegal"
+            assert arg and arg.strip() and arg.endswith('.json'), "'group_expect_result_file' is illegal"
             MessageConfig.group_expect_result_file = arg
         elif opt in ("-l", "--log_dir"):
-            assert arg is not None and arg != '', "'log_dir' is illegal"
+            assert arg and arg.strip(), "'log_dir' is illegal"
             MessageConfig.log_dir = arg
         elif opt in ("-t", "--time"):
             analysis_wait_time = int(arg)
             assert analysis_wait_time > 0, "'analysis_wait_time' must digit and greater than 0"
             MessageConfig.analysis_wait_time = analysis_wait_time
         elif opt in ("-i", "--ip"):
-            assert arg is not None and arg != '', "'activemq ip' is illegal"
+            assert arg and arg.strip(), "'activemq ip' is illegal"
             MessageConfig.host = arg
         elif opt in ("-p", "--port"):
-            assert arg is not None and arg != '', "'activemq port' is illegal"
+            assert arg and arg.strip(), "'activemq port' is illegal"
             MessageConfig.port = int(arg)
         elif opt in ("-u", "--user"):
-            assert arg is not None and arg != '', "'activemq user' is illegal"
+            assert arg and arg.strip(), "'activemq user' is illegal"
             MessageConfig.user = arg
-        elif opt in ("-w", "--password"):
-            assert arg is not None and arg != '', "'activemq password' is illegal"
+        elif opt in ("-P", "--password"):
+            assert arg and arg.strip(), "'activemq password' is illegal"
             MessageConfig.password = arg
-    if operation_mode is None or operation_mode == OperationMode.ALL.value:
-        __receive_thread = threading.Thread(target=__start_receive())
-        __analysis_thread = threading.Thread(target=__statistic_analysis_data())
+        elif opt in ("-f", "--filter"):
+            assert arg and arg.strip(), "'filters' is illegal"
+            filters = arg
+
+    __receive_thread = None
+    __analysis_thread = None
+    if not operation_mode or operation_mode == OperationMode.ALL.value:
+        __receive_thread = threading.Thread(target=__start_receive, args=(True, ))
+        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(filters, ))
     if operation_mode == OperationMode.RECEIVE.value:
-        __receive_thread = threading.Thread(target=__start_receive())
+        __receive_thread = threading.Thread(target=__start_receive)
+    if operation_mode == OperationMode.DRECEIVE.value:
+        __receive_thread = threading.Thread(target=__start_receive, args=(True, ))
     if operation_mode == OperationMode.ANALYSIS.value:
-        __analysis_thread = threading.Thread(target=__statistic_analysis_data())
+        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(filters, ))
+    if operation_mode == OperationMode.SANALYSIS.value:
+        __shutdown()
+        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(filters, ))
+
+    if __receive_thread:
+        __receive_thread.start()
+        pass
+    if __analysis_thread:
+        __analysis_thread.start()
+        pass
 
 
 if __name__ == '__main__':

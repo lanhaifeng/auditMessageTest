@@ -91,6 +91,24 @@ class FileUtil(object):
 		sql_list = file.read()
 		sql_item = ''
 		for x in sql_list:
+			sql_item = sql_item + x
+
+		file.close()
+		return [] if sql_item == '' else [sql.strip() for sql in sql_item[:len(sql_item) - 1].split(";")]
+
+	@staticmethod
+	def get_sql_file_format(path: str, encoding: str = 'UTF-8'):
+		"""
+		读取sql文件并格式化，去掉换行和多余空格
+		:param path: 文件路径
+		:param encoding: 文件编码
+		:return:
+		"""
+		path = FileUtil.get_file_path(path)
+		file = open(path, 'r', encoding=encoding)
+		sql_list = file.read()
+		sql_item = ''
+		for x in sql_list:
 			# 判断包含空行的
 			if '\n' in x:
 				# 替换空行为1个空格
@@ -137,37 +155,138 @@ class FileUtil(object):
 		return path
 
 
+@unique
+class ConfigFileEnum(Enum):
+	"""
+	配置文件枚举
+	"""
+	COLUMN_DESC_CONF = "columnDesc.conf"
+	DATA_PROCESSOR_CONF = "dataProcessor.conf"
+	MESSAGE_CONF = "message.conf"
+
+	@property
+	def path(self):
+		return FileUtil.get_project_path() + "/config/" + self.value
+
+
 class MessageConfig(object):
 	"""
 	activemq属性配置类
 	"""
-	cp = configparser.ConfigParser()
-	file = FileUtil.get_project_path() + "/config/message.conf"
-	cp.read(file, encoding="utf-8")
-	host = cp.get("activemq", "ip")
-	port = cp.getint("activemq", "port")
-	user = cp.get("activemq", "user")
-	password = cp.get("activemq", "password")
-	logon_validate = cp.getboolean("activemq", "logon_validate")
-	access_queue_name = cp.get("activemq", "access_queue_name")
-	access_queue_num = cp.getint("activemq", "access_queue_num")
+	__cp = configparser.ConfigParser()
+	__file = FileUtil.get_project_path() + "/config/message.conf"
+	__cp.read(__file, encoding="utf-8")
+	host = __cp.get("activemq", "ip")
+	port = __cp.getint("activemq", "port")
+	user = __cp.get("activemq", "user")
+	password = __cp.get("activemq", "password")
+	logon_validate = __cp.getboolean("activemq", "logon_validate")
+	access_queue_name = __cp.get("activemq", "access_queue_name")
+	access_queue_num = __cp.getint("activemq", "access_queue_num")
 
-	output_dir = cp.get("output_config", "output_dir")
-	single_expect_result_file = cp.get("output_config", "single_expect_result_file")
+	output_dir = __cp.get("output_config", "output_dir")
+	single_expect_result_file = __cp.get("output_config", "single_expect_result_file")
 	if single_expect_result_file.startswith("classpath:"):
 		single_expect_result_file = single_expect_result_file[single_expect_result_file.index("classpath:") + 10:]
 		single_expect_result_file = FileUtil.get_project_path() + single_expect_result_file
 
-	group_expect_result_file = cp.get("output_config", "group_expect_result_file")
+	group_expect_result_file = __cp.get("output_config", "group_expect_result_file")
 	if group_expect_result_file.startswith("classpath:"):
 		group_expect_result_file = group_expect_result_file[group_expect_result_file.index("classpath:") + 10:]
 		group_expect_result_file = FileUtil.get_project_path() + group_expect_result_file
 
-	log_dir = cp.get("log_config", "log_dir")
+	log_dir = __cp.get("log_config", "log_dir")
 	if not os.path.exists(log_dir):
 		os.mkdir(log_dir)
-	analysis_wait_time = cp.getint("analysis_config", "analysis_wait_time")
-	shutdown_wait_time = cp.getint("analysis_config", "shutdown_wait_time")
+	analysis_wait_time = __cp.getint("analysis_config", "analysis_wait_time")
+	shutdown_wait_time = __cp.getint("analysis_config", "shutdown_wait_time")
+
+	__data_processor = configparser.ConfigParser()
+	__file = FileUtil.get_project_path() + "/config/dataProcessor.conf"
+	__data_processor.read(__file, encoding="utf-8")
+	logon_filter_columns = __data_processor.get("data_analysis_filter", "logon_filter_columns")
+	access_filter_columns = __data_processor.get("data_analysis_filter", "access_filter_columns")
+	operator_symbol = __data_processor.get("data_analysis_filter", "operator_symbol")
+
+	__config_file_readers = {
+		ConfigFileEnum.DATA_PROCESSOR_CONF: __data_processor,
+		ConfigFileEnum.MESSAGE_CONF: __cp
+	}
+
+	@classmethod
+	def get_config_file_reader(cls, config_file: ConfigFileEnum) -> configparser.ConfigParser:
+		"""
+		获取对应配置文件读取器
+		:param config_file: 配置文件枚举
+		:return:
+		"""
+		assert config_file and isinstance(config_file, ConfigFileEnum), \
+			"'config_file' is required and type is ConfigFileEnum"
+		__cp = ""
+		if config_file in cls.__config_file_readers.keys():
+			__cp = cls.__config_file_readers[config_file]
+		if not __cp:
+			__cp = configparser.ConfigParser()
+			__cp.read(config_file.path, encoding="utf-8")
+			cls.__config_file_readers[config_file] = __cp
+		return __cp
+
+	@classmethod
+	def get_value_from_config(cls, config_file: ConfigFileEnum, section: str, column_name: str) -> str:
+		"""
+		获取对应文件解析器，某部分，对应键，所对应的值
+		:param config_file:文件类型
+		:param section:部分名
+		:param column_name:键名
+		:return:
+		"""
+		assert config_file and isinstance(config_file, ConfigFileEnum), \
+			"'config_file' is required and type is ConfigFileEnum"
+		assert section is not None and section.strip() != '', "'section' is required"
+		assert column_name is not None and column_name.strip() != '', "'column_name' is required"
+		assert cls.get_config_file_reader(config_file).has_section(section), "section:" + section + ",not exist"
+		assert cls.get_config_file_reader(config_file).has_option(section, column_name), \
+			"section:" + section + ",option:" + column_name + ",not exist"
+		return cls.get_config_file_reader(config_file).get(section, column_name)
+
+	@classmethod
+	def get_section_values(cls, config_file: ConfigFileEnum, section: str) -> list:
+		"""
+		获取对应文件解析器，某部分，特定部分全部的值
+		:param config_file:文件类型
+		:param section:部分名
+		:return:
+		"""
+		assert config_file and isinstance(config_file, ConfigFileEnum), \
+			"'config_file' is required and type is ConfigFileEnum"
+		assert cls.get_config_file_reader(config_file).has_section(section), "section:" + section + ",not exist"
+		return [item[1] for item in cls.get_config_file_reader(config_file).items(section)]
+
+	@classmethod
+	def get_compare_handler(cls, column_name: str) -> str:
+		"""
+		获取比较处理器
+		:param column_name:字段名
+		:return:
+		"""
+		assert column_name and column_name.strip(), "'column_name' is required"
+		__reader = cls.get_config_file_reader(ConfigFileEnum.DATA_PROCESSOR_CONF)
+		if not __reader.has_option("compare_handler", column_name):
+			return __reader.get("compare_handler", "DEFAULT")
+		return __reader.get("compare_handler", column_name)
+
+	@classmethod
+	def get_reader_handler(cls, column_name: str) -> str:
+		"""
+		获取文件读取器
+		:param column_name: 字段名
+		:return:
+		"""
+		assert column_name and column_name.strip(), "'column_name' is required"
+		__reader = cls.get_config_file_reader(ConfigFileEnum.DATA_PROCESSOR_CONF)
+		if not __reader.has_option("reader_handler", column_name):
+			return __reader.get("reader_handler", "DEFAULT")
+		return __reader.get("reader_handler", column_name)
 
 
 class StringUtil(object):
@@ -224,7 +343,10 @@ class AuditType(Enum):
 	统计策略类型
 	"""
 	ACCESS = "access"
+	ACCESS_RESULT = "accessResult"
 	LOGON = "logon"
+	LOGOFF = "logoff"
+	SQL_RESULT = "sqlResult"
 
 	@property
 	def desc(self):
@@ -237,25 +359,28 @@ class AuditType(Enum):
 	def analysis_pre_file_name(self):
 		if self == AuditType.ACCESS:
 			return "AccessAudit"
+		if self == AuditType.ACCESS_RESULT:
+			return "AccessResult"
+		if self == AuditType.SQL_RESULT:
+			return "SqlResult"
 		if self == AuditType.LOGON:
 			return "LogonAudit"
+		if self == AuditType.LOGOFF:
+			return "Logoff"
 
 
 class HeadersConfig(object):
 	"""
 	文件头配置
 	"""
-	config = configparser.ConfigParser()
-	file = FileUtil.get_project_path() + "/config/columnDesc.conf"
-	config.read(file, encoding="utf-8")
-
 	@staticmethod
 	def get_section_columns(section: str):
 		"""
 		获取配置文件columnDesc.conf中对应section
 		:return:
 		"""
-		return [item[1] for item in HeadersConfig.config.items(section)]
+		assert section and section.strip(), "'section' is required"
+		return MessageConfig.get_section_values(ConfigFileEnum.COLUMN_DESC_CONF, section)
 
 
 class SystemUtil(object):
@@ -269,4 +394,3 @@ class SystemUtil(object):
 		:return:
 		"""
 		return platform.system()
-

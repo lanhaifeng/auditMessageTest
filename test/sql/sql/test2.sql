@@ -1,4 +1,5 @@
 select *
 from test1  ;
-select *        from
- test2  ;
+SELECT   *   from
+
+test.TESTTABLE;

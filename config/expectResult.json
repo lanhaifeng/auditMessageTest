@@ -303,9 +303,10 @@
       "configType": "str",
       "expectResult": {
         "expectValues": [
-          "*"
+          "kjh"
         ],
         "expectNums": [
+          45
         ]
       }
     },

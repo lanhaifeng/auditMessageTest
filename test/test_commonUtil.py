@@ -10,7 +10,7 @@ from xlutils.copy import copy
 from common import protoActiveMq_pb2
 from common.commonUtil import FileUtil, StringUtil, MessageConfig, AuditType, HeadersConfig
 from common.protoActiveMq_pb2 import MsgCmdType
-from common.statisticAnalysis import SingleFieldStrategyDelegate, SingleExpectResultReader, GroupExpectResultReader, \
+from common.statisticAnalysis import StrategyDelegate, SingleExpectResultParse, GroupExpectResultParse, \
 	StrategyType
 
 
@@ -160,9 +160,9 @@ class TestExpectResult(TestCase):
 	测试ExpectResult
 	"""
 	def test_read_json(self):
-		reader = SingleExpectResultReader(MessageConfig.single_expect_result_file)
-		logon_strategy = SingleFieldStrategyDelegate(reader.logon_properties(), AuditType.LOGON)
-		access_strategy = SingleFieldStrategyDelegate(reader.access_properties(), AuditType.ACCESS)
+		reader = SingleExpectResultParse(MessageConfig.single_expect_result_file)
+		logon_strategy = StrategyDelegate(reader.logon_properties(), AuditType.LOGON)
+		access_strategy = StrategyDelegate(reader.access_properties(), AuditType.ACCESS)
 
 		logon_excel_path = FileUtil.get_project_path() + '\\test\\LogonAudit_1586413078263.xls'
 		book = xlrd.open_workbook(logon_excel_path, 'w+b')
@@ -171,7 +171,7 @@ class TestExpectResult(TestCase):
 			header = sheet.row_values(0)
 			for index in range(1, sheet.nrows):
 				data = dict(zip(header, sheet.row_values(index)))
-				logon_strategy.statistic_data(data)
+				logon_strategy.main_statistic_data(data)
 
 		logon_strategy.analysis_data()
 		for expectResult in reader.logon_properties():
@@ -185,7 +185,7 @@ class TestExpectResult(TestCase):
 			header = sheet.row_values(0)
 			for index in range(1, sheet.nrows):
 				data = dict(zip(header, sheet.row_values(index)))
-				access_strategy.statistic_data(data)
+				access_strategy.main_statistic_data(data)
 
 		access_strategy.analysis_data()
 		for expectResult in reader.access_properties():
@@ -206,16 +206,16 @@ class TestExpectResult(TestCase):
 		sql_file = FileUtil.get_project_path() + "\\test\\sql\\sql\\test2.sql"
 		print(FileUtil.get_sql_file(sql_file))
 
-		reader = GroupExpectResultReader(MessageConfig.group_expect_result_file, StrategyType.MULTIPLE_FIELDS_MATCH)
+		reader = GroupExpectResultParse(MessageConfig.group_expect_result_file, StrategyType.MULTIPLE_FIELDS_MATCH)
 		for expectResult in reader.access_properties():
 			print(expectResult)
 			pass
-		access_strategy = SingleFieldStrategyDelegate(reader.access_properties(), AuditType.ACCESS)
+		access_strategy = StrategyDelegate(reader.access_properties(), AuditType.ACCESS)
 		for sheet in sheets:
 			header = sheet.row_values(0)
 			for index in range(1, sheet.nrows):
 				data = dict(zip(header, sheet.row_values(index)))
-				access_strategy.statistic_data(data)
+				access_strategy.main_statistic_data(data)
 
 		access_strategy.analysis_data()
 

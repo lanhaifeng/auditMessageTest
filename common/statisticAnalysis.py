@@ -1,13 +1,16 @@
 # -*- coding:UTF-8 -*-
+import datetime
 import json
 import os
 import time
 from enum import unique, Enum
 
+import xlrd
 import xlwt
 from xlrd import sheet
 
 from common.commonUtil import FileUtil, AuditType, HeadersConfig, MessageConfig
+from common.dataProcessor import DataFilterDelegate, CompareHandlerDelegate
 
 
 @unique
@@ -71,6 +74,9 @@ class ExpectResult(object):
         if config_type.lower() == ConfigType.FILE.value.lower():
             self.expectValueFiles = expect_result['expectValueFiles']
             self.expectNumFiles = expect_result['expectNumFiles']
+            if not self.expectNumFiles or len(self.expectNumFiles) == 0:
+                for file_name in self.expectValueFiles:
+                    self.expectNumFiles.append(file_name[:file_name.rindex(".")] + ".num")
 
             assert self.expectValueFiles is not None, "'expectValueFiles' is required"
             assert self.expectNumFiles is not None, "'expectNumFiles' is required"
@@ -80,6 +86,8 @@ class ExpectResult(object):
             self.dataDir = expect_result['dataDir']
             self.expectValueSuffix = expect_result['expectValueSuffix']
             self.expectNumSuffix = expect_result['expectNumSuffix']
+            if not self.expectNumSuffix or not self.expectNumSuffix.strip:
+                self.expectNumSuffix = ".num"
 
             assert self.dataDir is not None and self.dataDir.strip() != '', "'dataDir' is required"
             assert self.expectValueSuffix is not None and self.expectValueSuffix.strip() != '', \
@@ -95,10 +103,21 @@ class ExpectResult(object):
         self.groupExpectValues = []
         self.notMatchGroupValues = []
         self.notMatchGroupIds = []
+
+        self.groupInvariantExpectValues = []
+        self.notMatchGroupInvariantValues = []
+        self.notMatchGroupInvariantIds = []
+
+        self.matchGroupMainColumnNum = []
         self.groupColumns = expect_result['groupColumns']
         self.mainPropertyIndex = expect_result['groupColumns'].index(self.propertyName)
+        self.groupInvariantColumns = expect_result['groupInvariantColumns']
+        self.groupInvariantValues = expect_result['groupInvariantValues']
         assert self.groupColumns is not None and len(self.groupColumns) != 0, "'groupColumns' is required"
         assert self.mainPropertyIndex is not None and self.mainPropertyIndex >= 0, "'mainPropertyIndex' is required"
+        if self.groupInvariantColumns and len(self.groupInvariantColumns) != 0:
+            assert len(self.groupInvariantColumns) == len(self.groupInvariantValues), \
+                "'groupInvariantColumns' length need equal 'groupInvariantValues' element length"
 
         if config_type.lower() == ConfigType.STR.value.lower():
             self.groupValues = expect_result['groupValues']
@@ -135,17 +154,23 @@ class ExpectResult(object):
         if self.strategyType == StrategyType.SINGLE_FIELD_COUNT:
             result = {
                 "字段名": self.propertyName,
-                "期待值": self.expectValues,
-                "不匹配值": self.notMatchValues,
+                "期待值列表": self.expectValues,
+                "不匹配值列表": self.notMatchValues,
                 "不匹配数据id": self.notMatchDataKeys,
                 "期待数量": self.expectNums,
                 "实际数量": self.actualNums
             }
         if self.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
             result = {
-                "字段名": self.propertyName,
-                "分组字段": self.groupColumns,
-                "分组字段值列表": self.groupValues
+                "主字段名": self.propertyName,
+                "分组字段列表": self.groupColumns,
+                "分组期待值列表": self.groupExpectValues,
+                "不匹配实际值列表": self.notMatchGroupValues,
+                "不匹配数据id": self.notMatchGroupIds,
+                "固定值字段列表": self.groupInvariantColumns,
+                "固定期待值列表": self.groupInvariantValues,
+                "不匹配固定值列表": self.notMatchGroupInvariantValues,
+                "不匹配固定值数据id": self.notMatchGroupInvariantIds
             }
             pass
 
@@ -155,6 +180,8 @@ class ExpectResult(object):
         """
         转为输出列表
         ["审计类型", "字段名", "期待数量", "实际数量", "期待值列表", "不匹配值列表", "不匹配数据id"]
+        ["审计类型", "主字段名", "分组字段列表", "分组期待值列表", "不匹配实际值列表", "不匹配数据id",
+         "固定值字段列表", "固定期待值列表", "不匹配固定值列表", "不匹配固定值数据id"]
         :param audit_type: 审计类型
         :return:
         """
@@ -162,25 +189,129 @@ class ExpectResult(object):
             return [audit_type.desc, self.propertyName, self.expectNums, self.actualNums, self.expectValues,
                     self.notMatchValues, self.notMatchDataKeys]
         if self.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+            for index, num in enumerate(self.matchGroupMainColumnNum):
+                if num == 0:
+                    self.groupExpectValues.append(self.groupValues[index])
+                    self.notMatchGroupValues.append(["all datas not match"])
+                    self.notMatchGroupInvariantValues.append(["all datas not match"])
             return [audit_type.desc, self.propertyName, self.groupColumns, self.groupExpectValues,
-                    self.notMatchGroupValues, self.notMatchGroupIds]
+                    self.notMatchGroupValues, self.notMatchGroupIds, self.groupInvariantColumns,
+                    self.groupInvariantValues, self.notMatchGroupInvariantValues, self.notMatchGroupInvariantIds]
             pass
 
 
-class SingleExpectResultReader(object):
+class ExpectResultConfig(object):
+    __single_expect_result_headers = ["审计类型", "字段名", "配置类型", "期待值配置", "期待数量配置", "期待数据目录"]
+    __single_expect_result_sheet = "singleExpectResult"
+    __single_expect_result_start_row = 1
+
+    __group_expect_result_headers = ["审计类型", "主字段名", "配置类型", "常量字段名列表", "常量值列表", "分组字段名列表",
+                                     "分组字段值配置", "分组字段数据目录"]
+    __group_expect_result_sheet = "groupExpectResult"
+    __group_expect_result_start_row = 1
+
+    __single_expect_result_file = MessageConfig.single_expect_result_file
+    __group_expect_result_file = MessageConfig.group_expect_result_file
+    assert __single_expect_result_file is not None, "'single_expect_result_file' is required"
+    assert __group_expect_result_file is not None, "'group_expect_result_file' is required"
+
+    single_expect_json = None
+    group_expect_json = None
+    if __single_expect_result_file.endswith(".json"):
+        __file = open(__single_expect_result_file, "rb")
+        single_expect_json = json.load(__file)
+        __file.close()
+    elif __single_expect_result_file.endswith(".xls"):
+        single_expect_json = {
+            "logonProperties": [],
+            "accessProperties": []
+        }
+        book = xlrd.open_workbook(__single_expect_result_file, 'r+b')
+        sheet = book.sheet_by_name(__single_expect_result_sheet)
+        for index in range(__single_expect_result_start_row, sheet.nrows):
+            __data = dict(zip(__single_expect_result_headers, sheet.row_values(index)))
+            __auditType = __data[__single_expect_result_headers[0]]
+            __configType = __data[__single_expect_result_headers[2]]
+            __json_row = {
+                "propertyName": __data[__single_expect_result_headers[1]],
+                "configType": __configType
+            }
+            if __configType == "str":
+                __json_row['expectResult'] = {
+                    "expectValues": json.loads(__data[__single_expect_result_headers[3]]),
+                    "expectNums": json.loads(__data[__single_expect_result_headers[4]])
+                }
+            if __configType == "file":
+                __json_row['expectResult'] = {
+                    "expectValueFiles": json.loads(__data[__single_expect_result_headers[3]]),
+                    "expectNumFiles": json.loads(__data[__single_expect_result_headers[4]])
+                }
+            if __configType == "dir":
+                __json_row['expectResult'] = {
+                    "dataDir": __data[__single_expect_result_headers[5]],
+                    "expectValueSuffix": __data[__single_expect_result_headers[3]],
+                    "expectNumSuffix": __data[__single_expect_result_headers[4]]
+                }
+            if __auditType == AuditType.LOGON.value:
+                single_expect_json['logonProperties'].append(__json_row)
+            if __auditType == AuditType.ACCESS.value:
+                single_expect_json['accessProperties'].append(__json_row)
+        pass
+
+    if __group_expect_result_file.endswith(".json"):
+        __file = open(__group_expect_result_file, "rb")
+        group_expect_json = json.load(__file)
+        __file.close()
+    elif __group_expect_result_file.endswith(".xls"):
+        group_expect_json = {
+            "logonProperties": [],
+            "accessProperties": []
+        }
+        book = xlrd.open_workbook(__group_expect_result_file, 'r+b')
+        sheet = book.sheet_by_name(__group_expect_result_sheet)
+        for index in range(__group_expect_result_start_row, sheet.nrows):
+            __data = dict(zip(__group_expect_result_headers, sheet.row_values(index)))
+            __auditType = __data[__group_expect_result_headers[0]]
+            __configType = __data[__group_expect_result_headers[2]]
+            __json_row = {
+                "propertyName": __data[__group_expect_result_headers[1]],
+                "configType": __configType,
+                "expectResult": {
+                    "groupColumns": json.loads(__data[__group_expect_result_headers[5]]),
+                    "groupInvariantColumns": json.loads(__data[__group_expect_result_headers[3]]),
+                    "groupInvariantValues": json.loads(__data[__group_expect_result_headers[4]])
+                }
+            }
+            if __configType == "str":
+                __json_row['expectResult']["groupValues"] = json.loads(__data[__group_expect_result_headers[6]])
+            if __configType == "file":
+                __json_row['expectResult']["groupFileValues"] = json.loads(__data[__group_expect_result_headers[6]])
+            if __configType == "dir":
+                __json_row['expectResult']["groupSuffixValues"] = json.loads(__data[__group_expect_result_headers[6]])
+                __json_row['expectResult']["groupDataDir"] = __data[__group_expect_result_headers[7]]
+            if __auditType == AuditType.ACCESS.value:
+                group_expect_json['logonProperties'].append(__json_row)
+            if __auditType == AuditType.ACCESS.value:
+                group_expect_json['accessProperties'].append(__json_row)
+        pass
+
+    assert single_expect_json, "'single_expect_json' is required"
+    assert group_expect_json, "'group_expect_json' is required"
+
+
+class SingleExpectResultParse(object):
     """
     期待结果读取
     """
 
-    def __init__(self, single_expect_result_file: str, strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
+    def __init__(self, strategy_type: StrategyType = StrategyType.SINGLE_FIELD_COUNT):
         """
         初始化方法，读取json文件
         """
-        assert single_expect_result_file is not None, "'single_expect_result_file' is required"
-        assert strategy_type is not None, "'strategy_type' is required"
-        __file = open(single_expect_result_file, "rb")
-        self.__file_json = json.load(__file)
-        __file.close()
+        if strategy_type == StrategyType.SINGLE_FIELD_COUNT:
+            self.__file_json = ExpectResultConfig.single_expect_json
+        if strategy_type == StrategyType.MULTIPLE_FIELDS_MATCH:
+            self.__file_json = ExpectResultConfig.group_expect_json
 
         assert 'logonProperties' in self.__file_json or 'accessProperties' in self.__file_json, \
             "'logonProperties' or 'accessProperties' is required"
@@ -220,7 +351,7 @@ class SingleExpectResultReader(object):
     def _parse_str_expect_result(expect_result: ExpectResult):
         assert expect_result.expectValues is not None, "'expectValues' is required"
         assert expect_result.expectNums is not None, "'expectNums' is required"
-        assert len(expect_result.expectNums) == 0 or len(expect_result.expectValues) == len(
+        assert len(expect_result.expectNums) != 0 and len(expect_result.expectValues) == len(
             expect_result.expectNums), "'values' length need equal 'expectNums' length"
         pass
 
@@ -254,7 +385,7 @@ class SingleExpectResultReader(object):
         expect_result.expectNums = expect_nums
         delattr(expect_result, "expectValueFiles")
         delattr(expect_result, "expectNumFiles")
-        SingleExpectResultReader._parse_str_expect_result(expect_result)
+        SingleExpectResultParse._parse_str_expect_result(expect_result)
         pass
 
     @staticmethod
@@ -279,7 +410,7 @@ class SingleExpectResultReader(object):
         delattr(expect_result, "expectValueSuffix")
         delattr(expect_result, "expectNumSuffix")
 
-        SingleExpectResultReader._parse_file_expect_result(expect_result)
+        SingleExpectResultParse._parse_file_expect_result(expect_result)
         pass
 
     def expect_result_str(self):
@@ -311,10 +442,10 @@ class SingleExpectResultReader(object):
         return self.__accessProperties
 
 
-class GroupExpectResultReader(SingleExpectResultReader):
+class GroupExpectResultParse(SingleExpectResultParse):
 
-    def __init__(self, single_expect_result_file: str, strategy_type: StrategyType = StrategyType.MULTIPLE_FIELDS_MATCH):
-        super().__init__(single_expect_result_file, strategy_type)
+    def __init__(self, strategy_type: StrategyType = StrategyType.MULTIPLE_FIELDS_MATCH):
+        super().__init__(strategy_type)
 
     @staticmethod
     def _parse_str_expect_result(expect_result: ExpectResult):
@@ -322,6 +453,7 @@ class GroupExpectResultReader(SingleExpectResultReader):
         for groupValue in expect_result.groupValues:
             assert len(expect_result.groupColumns) == len(
                 groupValue), "'groupColumns' length need equal 'groupValues' element length"
+        expect_result.matchGroupMainColumnNum = [0] * len(expect_result.groupValues)
 
     @staticmethod
     def _parse_file_expect_result(expect_result: ExpectResult):
@@ -348,6 +480,7 @@ class GroupExpectResultReader(SingleExpectResultReader):
             for cell_index in range(len(expect_result.groupColumns)):
                 expect_group_values[row_index][cell_index] = group_values[cell_index][row_index]
         expect_result.groupValues = expect_group_values
+        expect_result.matchGroupMainColumnNum = [0] * len(expect_result.groupValues)
         delattr(expect_result, "groupFileValues")
 
     @staticmethod
@@ -365,7 +498,7 @@ class GroupExpectResultReader(SingleExpectResultReader):
         delattr(expect_result, "groupDataDir")
         delattr(expect_result, "groupSuffixValues")
 
-        GroupExpectResultReader._parse_file_expect_result(expect_result)
+        GroupExpectResultParse._parse_file_expect_result(expect_result)
 
 
 class Strategy(object):
@@ -409,7 +542,7 @@ class SingleFieldCountStrategy(Strategy):
         match_flag = False
         if property_name in data and actual_value != '':
             for index, expect_value in enumerate(values):
-                if expect_value == self.ANY_MATCH_WORDS or actual_value == expect_value:
+                if CompareHandlerDelegate.equals(property_name, actual_value, expect_value):
                     actual_nums[index] = actual_nums[index] + 1
                     match_flag = True
 
@@ -442,29 +575,41 @@ class TotalCountStrategy(object):
     """
     总数统计策略
     """
-    def __init__(self):
+    def __init__(self, audit_type: AuditType):
+        assert audit_type is not None, "'audit_type' is required"
+
+        self.__auditType = audit_type
         self.__accessCount = 0
         self.__accessResultCount = 0
         self.__logonCount = 0
         self.__logoffCount = 0
-        self.__headers = ["访问审计数量", "访问审计结果数量", "登录数量", "登出数量"]
+        self.__cmdTypeCount = {}
+        if audit_type == AuditType.ACCESS:
+            self.__headers = ["访问审计数量", "访问审计执行结果数量"]
+        if audit_type == AuditType.LOGON:
+            self.__headers = ["登录数量", "登出数量"]
 
-    def statistic_data(self, audit_type: AuditType, data: dict):
+    def statistic_data(self, data: dict):
         """
         统计数据
-        :param audit_type: 审计类别
         :param data: 一条数据
         :return:
         """
-        assert audit_type is not None, "'audit_type' is required"
-        if audit_type == AuditType.ACCESS:
-            if data['是否访问结果'] == "true":
+        if self.__auditType == AuditType.ACCESS:
+            if data['是否访问审计执行结果'] == "true":
                 self.__accessResultCount += 1
             else:
                 self.__accessCount += 1
+            if "操作类型" in data.keys():
+                __type = data["操作类型"]
+                __count = 0
+                if __type in self.__cmdTypeCount.keys():
+                    __count = self.__cmdTypeCount[__type]
+                __count += 1
+                self.__cmdTypeCount[__type] = __count
 
-        if audit_type == AuditType.LOGON:
-            if data['是否登录结果'] == "true":
+        if self.__auditType == AuditType.LOGON:
+            if data['是否登出审计'] == "true":
                 self.__logoffCount += 1
             else:
                 self.__logonCount += 1
@@ -475,15 +620,18 @@ class TotalCountStrategy(object):
         :param work_sheet: excel完整路径
         :return:
         """
-        __results = [self.__accessCount, self.__accessResultCount, self.__logonCount, self.__logoffCount]
-        nrows = len(work_sheet.rows)
-        for index, header in enumerate(self.__headers):
-            work_sheet.write(nrows, index, header)
+        __results = []
+        if self.__auditType == AuditType.ACCESS:
+            __results = [self.__accessCount, self.__accessResultCount]
+            self.__headers += self.__cmdTypeCount.keys()
+            __results += self.__cmdTypeCount.values()
+        if self.__auditType == AuditType.LOGON:
+            __results = [self.__logonCount, self.__logoffCount]
 
         nrows = len(work_sheet.rows)
-        for index, result in enumerate(__results):
-            work_sheet.write(nrows, index, result)
-        pass
+        for index, header in enumerate(self.__headers):
+            work_sheet.write(nrows + index, 0, header)
+            work_sheet.write(nrows + index, 1, __results[index])
 
 
 class MultipleFieldsMatchStrategy(Strategy):
@@ -493,7 +641,8 @@ class MultipleFieldsMatchStrategy(Strategy):
     """
 
     def __init__(self) -> None:
-        self.__headers = ["审计类型", "主字段名", "分组字段", "分组期待值列表", "不匹配实际值列表", "不匹配数据id"]
+        self.__headers = ["审计类型", "主字段名", "分组字段列表", "分组期待值列表", "不匹配实际值列表", "不匹配数据id",
+                          "固定值字段列表", "固定期待值列表", "不匹配固定值列表", "不匹配固定值数据id"]
 
     def statistic_data(self, data: dict, expect_result: ExpectResult):
         super().statistic_data(data, expect_result)
@@ -501,14 +650,30 @@ class MultipleFieldsMatchStrategy(Strategy):
         main_property_index = expect_result.mainPropertyIndex
         group_columns = expect_result.groupColumns
         group_values = expect_result.groupValues
+        group_invariant_columns = expect_result.groupInvariantColumns
+        group_invariant_values = expect_result.groupInvariantValues
 
         for row_index, row in enumerate(group_values):
-            if row[main_property_index] == data[main_property_name]:
+            # 主字段值比较
+            if CompareHandlerDelegate.equals(main_property_name, data[main_property_name], row[main_property_index]):
                 match = True
                 not_match_value = []
+                expect_result.matchGroupMainColumnNum[row_index] = expect_result.matchGroupMainColumnNum[row_index] + 1
+
+                # 固定字段值进行比较
+                for index, column in enumerate(group_invariant_columns):
+                    not_match_value.append(data[column])
+                    if not CompareHandlerDelegate.equals(column, data[column], group_invariant_values[index]):
+                        match = False
+                if not match:
+                    expect_result.groupInvariantExpectValues.append(row)
+                    expect_result.notMatchGroupInvariantValues.append(not_match_value)
+                    expect_result.notMatchGroupInvariantIds.append(data[self.PRIMARY_KEY])
+
+                # 分组字段值进行比较
                 for index, column in enumerate(group_columns):
                     not_match_value.append(data[column])
-                    if data[column] != row[index]:
+                    if not CompareHandlerDelegate.equals(column, data[column], row[index]):
                         match = False
                 if not match:
                     expect_result.groupExpectValues.append(row)
@@ -537,11 +702,11 @@ class MultipleFieldsMatchStrategy(Strategy):
                         work_sheet.write(row_index + 1, cell_index, str(row[cell_index]))
 
 
-class SingleFieldStrategyDelegate(object):
+class StrategyDelegate(object):
     """
     策略组
     """
-    def __init__(self, expect_results: list, audit_type: AuditType):
+    def __init__(self, expect_results: list, audit_type: AuditType, filter_content: str):
         """
         ExpectResult通过初始化策略组
         :param expect_results: 期待结果对象
@@ -552,7 +717,7 @@ class SingleFieldStrategyDelegate(object):
         self.__expectResults = expect_results
 
         self.__singleFieldCountStrategy = SingleFieldCountStrategy()
-        self.__totalCountStrategy = TotalCountStrategy()
+        self.__totalCountStrategy = TotalCountStrategy(audit_type)
         self.__multipleFieldsMatchStrategy = MultipleFieldsMatchStrategy()
 
         self.__accessHeaders = HeadersConfig.get_section_columns("accessDesc")
@@ -561,6 +726,11 @@ class SingleFieldStrategyDelegate(object):
         self.__logoffHeaders = HeadersConfig.get_section_columns("logOff")
 
         self.__workbook = xlwt.Workbook()
+
+        if filter_content and filter_content.strip():
+            self.__dataFilterDelegate = DataFilterDelegate(filter_content)
+        else:
+            self.__dataFilterDelegate = None
 
         for expectResult in expect_results:
             assert type(expectResult) is ExpectResult, "'expect_results' list element type required from " \
@@ -573,12 +743,12 @@ class SingleFieldStrategyDelegate(object):
         :return:
         """
         if self.__audit_type == AuditType.ACCESS:
-            if data['是否访问结果'] == "true":
+            if data['是否访问审计执行结果'] == "true":
                 return self.__accessResultHeaders
             else:
                 return self.__accessHeaders
         if self.__audit_type == AuditType.LOGON:
-            if data['是否登录结果'] == "true":
+            if data['是否登出审计'] == "true":
                 return self.__logoffHeaders
             else:
                 return self.__logonHeaders
@@ -589,13 +759,14 @@ class SingleFieldStrategyDelegate(object):
         :param data: 一条row数据
         :return:
         """
-        for expectResult in self.__expectResults:
-            if expectResult.propertyName in self.__get_headers(data):
-                if expectResult.strategyType == StrategyType.SINGLE_FIELD_COUNT:
-                    self.__singleFieldCountStrategy.statistic_data(data, expectResult)
-                if expectResult.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
-                    self.__multipleFieldsMatchStrategy.statistic_data(data, expectResult)
-        self.__totalCountStrategy.statistic_data(self.__audit_type, data)
+        if self.__dataFilterDelegate and self.__dataFilterDelegate.filter(data, self.__audit_type):
+            for expectResult in self.__expectResults:
+                if expectResult.propertyName in self.__get_headers(data):
+                    if expectResult.strategyType == StrategyType.SINGLE_FIELD_COUNT:
+                        self.__singleFieldCountStrategy.statistic_data(data, expectResult)
+                    if expectResult.strategyType == StrategyType.MULTIPLE_FIELDS_MATCH:
+                        self.__multipleFieldsMatchStrategy.statistic_data(data, expectResult)
+            self.__totalCountStrategy.statistic_data(data)
 
     def analysis_data(self):
         """
@@ -622,5 +793,6 @@ class SingleFieldStrategyDelegate(object):
         if not os.path.exists(MessageConfig.output_dir):
             os.mkdir(MessageConfig.output_dir)
         self.__workbook.save(
-            MessageConfig.output_dir + "/analysisResult_" + self.__audit_type.value + str(
-                round(time.time() * 1000)) + ".xls")
+            MessageConfig.output_dir + "/analysisResult_" + self.__audit_type.value + "_"
+            + datetime.datetime.now().strftime(
+                "%Y_%m_%d_%H%M%S.%f")[:-3] + ".xls")

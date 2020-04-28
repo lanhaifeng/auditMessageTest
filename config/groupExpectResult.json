@@ -9,6 +9,8 @@
         "groupColumns": [
           "标准化SQL", "绑定变量", "执行结果"
         ],
+        "groupInvariantColumns": [ "执行结果"],
+        "groupInvariantValues": [ "0"],
         "groupValues": [
           ["select * from test1", "[]", "0"],
           ["select * from test2", "[]", "1"]
