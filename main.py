@@ -125,12 +125,12 @@ def main(argv):
     operation_mode = None
     filters = ""
     help_desc = 'usage: auditMessageTest'
-    help_desc += '\n    -m,--mode <arg>             run mode'
+    help_desc += '\n    -m,--mode <arg>            run mode'
     help_desc += '\n    -o,--output_dir <arg>      output file dir'
     help_desc += '\n    -s,--single_file <arg>     config file for single strategy analysis audit' \
-                 '\n                            ,default config/expectResultConfig.xls'
+                 '\n                                ,default config/expectResultConfig.xls'
     help_desc += '\n    -g,--group_file <arg>      config file for group strategy analysis audit' \
-                 '\n                            ,default config/expectResultConfig.xls'
+                 '\n                                ,default config/expectResultConfig.xls'
     help_desc += '\n    -l,--log_dir <arg>         log file dir'
     help_desc += '\n    -t,--time <arg>            receive audit time,union seconds'
     help_desc += '\n    -i,--ip <arg>              mq host'
