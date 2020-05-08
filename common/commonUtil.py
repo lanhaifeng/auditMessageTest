@@ -16,7 +16,7 @@ class FileUtil(object):
 		:return:
 		"""
 		execute_path = os.path.abspath(os.path.dirname(__file__))
-		return execute_path[:execute_path.find("auditMessageTest") + len("auditMessageTest")]
+		return execute_path[:execute_path.rfind("auditMessageTest") + len("auditMessageTest")]
 
 	@staticmethod
 	def get_files(path: str, file_suffix_name: str) -> []:
