@@ -183,10 +183,12 @@ def main(argv):
             assert arg and arg.strip(), "'output_dir' is illegal"
             MessageConfig.output_dir = arg
         elif opt in ("-s", "--single_file"):
-            assert arg and arg.strip() and arg.endswith('.json'), "'single_expect_result_file' is illegal"
+            assert arg and arg.strip() and (
+                        arg.endswith('.json') or arg.endswith('.xls')), "'single_expect_result_file' is illegal"
             MessageConfig.single_expect_result_file = arg
         elif opt in ("-g", "--group_file"):
-            assert arg and arg.strip() and arg.endswith('.json'), "'group_expect_result_file' is illegal"
+            assert arg and arg.strip() and (
+                        arg.endswith('.json') or arg.endswith('.xls')), "'group_expect_result_file' is illegal"
             MessageConfig.group_expect_result_file = arg
         elif opt in ("-l", "--log_dir"):
             assert arg and arg.strip(), "'log_dir' is illegal"
