@@ -14,7 +14,7 @@ from common.statisticAnalysis import StrategyDelegate, SingleExpectResultParse, 
 from common.dataProcessor import PostDataExcelReaderDelegate
 
 
-def __start_receive(need_clean: bool = False):
+def __start_receive(need_clean: bool = False, filter_content: str = ''):
     """
     启动接收消息方法
     :return:
@@ -36,7 +36,8 @@ def __start_receive(need_clean: bool = False):
     arg1 = "--spring.activemq.user=" + MessageConfig.user
     arg2 = "--spring.activemq.password=" + MessageConfig.password
     arg3 = "--message.output.path=" + MessageConfig.output_dir
-    cmd = [command, arg0, arg1, arg2, arg3]
+    arg4 = "--message.filters=" + filter_content
+    cmd = [command, arg0, arg1, arg2, arg3, arg4]
     command = " ".join(cmd)
     p = subprocess.Popen(command, shell=True, stdout=open(MessageConfig.log_dir + "receive.log", "w"),
                          stderr=subprocess.STDOUT)
@@ -123,7 +124,8 @@ def main(argv):
     :return:
     """
     operation_mode = None
-    filters = ""
+    receive_filters = ""
+    analysis_filters = ""
     help_desc = 'usage: auditMessageTest'
     help_desc += '\n    -m,--mode <arg>            run mode'
     help_desc += '\n    -o,--output_dir <arg>      output file dir'
@@ -137,7 +139,8 @@ def main(argv):
     help_desc += '\n    -p,--port <arg>            mq port'
     help_desc += '\n    -u,--user <arg>            mq username'
     help_desc += '\n    -P,--password <arg>        mq password'
-    help_desc += '\n    -f,--filter <arg>          data analysis filter'
+    help_desc += '\n    -f,--receiveFilter <arg>   data receive filter'
+    help_desc += '\n    -F,--analysisFilter <arg>  data analysis filter'
     help_desc += "\n    -------------------------------------------------------------------------"
 
     mode_desc = '\n\n    mode：'
@@ -160,9 +163,9 @@ def main(argv):
 
     help_desc = help_desc + mode_desc + filter_desc
     try:
-        opts, args = getopt.getopt(argv, "hm:o:s:g:l:t:i:p:u:P:f:",
+        opts, args = getopt.getopt(argv, "hm:o:s:g:l:t:i:p:u:P:f:F:",
                                    ["help", "mode=", "output_dir=", "single_file=", "group_file=", "log_dir=", "time=",
-                                    "ip=", "port=", "user=", "password=", "filter="])
+                                    "ip=", "port=", "user=", "password=", "receiveFilter=", "analysisFilter="])
     except getopt.GetoptError:
         print(help_desc)
         sys.exit(2)
@@ -204,24 +207,27 @@ def main(argv):
         elif opt in ("-P", "--password"):
             assert arg and arg.strip(), "'activemq password' is illegal"
             MessageConfig.password = arg
-        elif opt in ("-f", "--filter"):
-            assert arg and arg.strip(), "'filters' is illegal"
-            filters = arg
+        elif opt in ("-f", "--receiveFilter"):
+            assert arg and arg.strip(), "'receiveFilter' is illegal"
+            receive_filters = arg
+        elif opt in ("-F", "--analysisFilter"):
+            assert arg and arg.strip(), "'analysisFilter' is illegal"
+            analysis_filters = arg
 
     __receive_thread = None
     __analysis_thread = None
     if not operation_mode or operation_mode == OperationMode.ALL.value:
-        __receive_thread = threading.Thread(target=__start_receive, args=(True, ))
-        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(filters, ))
+        __receive_thread = threading.Thread(target=__start_receive, args=(True, receive_filters))
+        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(analysis_filters, ))
     if operation_mode == OperationMode.RECEIVE.value:
-        __receive_thread = threading.Thread(target=__start_receive)
+        __receive_thread = threading.Thread(target=__start_receive, args=(False, receive_filters))
     if operation_mode == OperationMode.DRECEIVE.value:
-        __receive_thread = threading.Thread(target=__start_receive, args=(True, ))
+        __receive_thread = threading.Thread(target=__start_receive, args=(True, receive_filters))
     if operation_mode == OperationMode.ANALYSIS.value:
-        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(filters, ))
+        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(analysis_filters, ))
     if operation_mode == OperationMode.SANALYSIS.value:
         __shutdown()
-        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(filters, ))
+        __analysis_thread = threading.Thread(target=__statistic_analysis_data, args=(analysis_filters, ))
 
     if __receive_thread:
         __receive_thread.start()
