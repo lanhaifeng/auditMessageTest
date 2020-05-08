@@ -289,7 +289,7 @@ class ExpectResultConfig(object):
             if __configType == "dir":
                 __json_row['expectResult']["groupSuffixValues"] = json.loads(__data[__group_expect_result_headers[6]])
                 __json_row['expectResult']["groupDataDir"] = __data[__group_expect_result_headers[7]]
-            if __auditType == AuditType.ACCESS.value:
+            if __auditType == AuditType.LOGON.value:
                 group_expect_json['logonProperties'].append(__json_row)
             if __auditType == AuditType.ACCESS.value:
                 group_expect_json['accessProperties'].append(__json_row)
