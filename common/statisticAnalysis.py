@@ -759,7 +759,7 @@ class StrategyDelegate(object):
         :param data: 一条row数据
         :return:
         """
-        if self.__dataFilterDelegate and self.__dataFilterDelegate.filter(data, self.__audit_type):
+        if self.__dataFilterDelegate is None or self.__dataFilterDelegate.filter(data, self.__audit_type):
             for expectResult in self.__expectResults:
                 if expectResult.propertyName in self.__get_headers(data):
                     if expectResult.strategyType == StrategyType.SINGLE_FIELD_COUNT:
