@@ -725,6 +725,8 @@ class StrategyDelegate(object):
         self.__logonHeaders = HeadersConfig.get_section_columns("logon")
         self.__logoffHeaders = HeadersConfig.get_section_columns("logOff")
 
+        self.__accessHeaders.extend(self.__accessResultHeaders)
+        self.__logonHeaders.extend(self.__logoffHeaders)
         self.__workbook = xlwt.Workbook()
 
         if filter_content and filter_content.strip():
@@ -743,15 +745,17 @@ class StrategyDelegate(object):
         :return:
         """
         if self.__audit_type == AuditType.ACCESS:
-            if data['是否访问审计执行结果'] == "true":
-                return self.__accessResultHeaders
-            else:
-                return self.__accessHeaders
+            # if data['是否访问审计执行结果'] == "true":
+            #     return self.__accessResultHeaders
+            # else:
+            #     return self.__accessHeaders
+            return self.__accessHeaders
         if self.__audit_type == AuditType.LOGON:
-            if data['是否登出审计'] == "true":
-                return self.__logoffHeaders
-            else:
-                return self.__logonHeaders
+            # if data['是否登出审计'] == "true":
+            #     return self.__logoffHeaders
+            # else:
+            #     return self.__logonHeaders
+            return self.__logonHeaders
 
     def statistic_data(self, data: dict):
         """
